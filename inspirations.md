@@ -56,7 +56,7 @@ This ledger names the games and rules sources that shaped Microlite Tactics. It 
 
 ### NetHack
 
-**Role: feature-design reference.** The official [NetHack repository](https://github.com/NetHack/NetHack) was cloned and inspected at release `NetHack-5.0.0_Released` (`16ff59115315917b93185d026aeefea06db9b0f4`). Its feature families are inventoried in [`features.md`](./features.md). NetHack has not supplied a rule currently implemented in Microlite Tactics; recommendations drawn from its features are explicitly marked as design proposals. The stairs glyphs `>` (stairs down) and `<` (way out) follow NetHack's symbol convention. That is a display symbol, not a rule.
+**Role: feature-design reference.** The official [NetHack repository](https://github.com/NetHack/NetHack) was cloned and inspected at release `NetHack-5.0.0_Released` (`16ff59115315917b93185d026aeefea06db9b0f4`). Its feature families are inventoried in [`features.md`](./features.md). NetHack has not supplied a rule currently implemented in Microlite Tactics; recommendations drawn from its features are explicitly marked as design proposals. The stairs direction convention (down, and way out) follows NetHack's down and up stairs; the stair drawing is original art, and the direction is a display convention, not a rule.
 
 ## Reviewed, with no specific current rule attributed
 

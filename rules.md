@@ -60,7 +60,7 @@ Elevation is local to the current dungeon floor. It does not describe which dung
 
 - Random dungeon runs and campaign delves each have three floors.
 - Floor 1 enemies: goblins, kobolds, skeletons and zombies. Floor 2: hobgoblins, orcs and war dogs. Floor 3: an ogre or troll boss.
-- **House rule:** each floor has stairs. Floors one and two have stairs down (`>`) in the lair room, the room farthest from the entry. Floor three has its way out (`<`) in the entry room. The stairs are outlined on the map and are always visible, since the whole map fits the window.
+- **House rule:** each floor has stairs. Floors one and two have stairs down (a down-stairs icon) in the lair room, the room farthest from the entry. Floor three has its way out (an up-stairs icon) in the entry room. The stairs are outlined on the map and are always visible, since the whole map fits the window.
 - When the floor's enemies are defeated, the party enters a search phase. Heroes can keep moving, opening chests, searching and recovering. Search rounds do not advance enemy turns or timed effects.
 - **Source-derived, adapted:** Moldvay's wandering-monster check, adapted to search rounds. After every second search round, roll 1d6. On a 1, 1d3 wandering monsters from the floor's band arrive out of every hero's line of sight, at about 2d6 x 2 hexes and no closer than 4 hexes. The party acts first in the next round; the arrivals act at the next enemy phase. A new arrival group has its own morale. The first search round never rolls, and nothing is rolled during combat.
 - Taking the stairs ends the floor. Its loot is banked, and the party descends to the next floor. Leaving floor three by its way out ends the dungeon.
