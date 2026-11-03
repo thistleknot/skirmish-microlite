@@ -323,7 +323,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Microlite Tactics: Skirmish</title>
 <style>
-body{margin:0;background:#10131c;color:#e8e6dc;font:14px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;height:100vh;box-sizing:border-box;overflow:hidden}
+body{margin:0;background:#10131c;color:#e8e6dc;font:14px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;height:100vh;height:100dvh;box-sizing:border-box;overflow:hidden}
 h1{font-size:18px;margin:0;color:#d9b869;width:100%;text-align:center}
 #order{width:100%;text-align:center;color:#8a90a2}
 #order .P{color:#7fb0ef}#order .E{color:#e0857c}#order b{color:#d9b869}
@@ -438,13 +438,15 @@ button.on{background:#d9b869;color:#10131c}
   .face{font-size:7px}
   #layout{flex-direction:column}
   #app{gap:3px;width:100%}
-  #turnPanel{flex:0 0 142px;height:142px;font-size:12px}
+  h1{display:none}
+  #turnPanel{flex:0 0 140px;height:140px;font-size:11.5px}
+  body>div:last-of-type button,body>div:last-of-type select{font-size:11px;padding:3px 5px;margin:1px}
   #lowerRow{flex:0 0 auto;height:auto;flex-direction:column;gap:3px}
-  #statsPanel{flex:0 0 112px;height:112px;font-size:11.5px}
-  #actionsPanel{flex:0 0 160px;height:160px}
+  #statsPanel{flex:0 0 108px;height:108px;font-size:11px}
+  #actionsPanel{flex:0 0 150px;height:150px}
   #actionsPanel #acts{gap:8px}
   .drawer{max-width:150px}
-  #sidePanel{width:100%;flex:0 0 52px;height:52px}
+  #sidePanel{width:100%;flex:0 0 44px;height:44px}
   #legend,#credits{display:none}
   .dial .slot{font-size:13px}
   .dial .hub{font-size:14px}
