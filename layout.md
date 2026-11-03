@@ -1,6 +1,6 @@
 # Layout requirements
 
-Requirement type: layout. This file is the governing spec for how the game view is arranged on screen. The header contract in `microlite-tactics-skirmish.html` points here (R53); rules about what the controls do live in `rules.md`.
+Requirement type: layout. This file is the governing spec for how the game view is arranged on screen. The header contract in `index.html` points here (R53); rules about what the controls do live in `rules.md`.
 
 Status: CURRENT, 2026-11-03. Basis: operator messages of 2026-11-03 (split row below the map, log to the right, extra actions beside the radial, the game always fits, no scrollbars).
 

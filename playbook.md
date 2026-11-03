@@ -10,19 +10,19 @@ Baseline (BASE-02, 2026-11-03): browser suite 147/148 before any edit. Failing: 
 
 ## Layer 1 - sequential
 - [DONE] T1 Rewrite the floor-end and layout contract in the game header
-  _Files:_ microlite-tactics-skirmish.html (header comment)
+  _Files:_ index.html (header comment)
   _Verify:_ rg -n "R62|R63" finds rule lines at header 182 and 188; rg -n "automatically settle|unopened chests|scroll inside the panel" finds nothing in the header; R11, R46, R47, R51, R54 each mention stairs; node parse of the engine block passes
   _Lessons:_ header-only edits applied cleanly with exact old strings; the Leader re-checked them. Oracle F1: R11 and R51 lacked the word "stairs", and R62 said "floor's band" where it meant the monster pool; fixed to "floor pool" and "stairs".
 
 - [DONE] T2 Engine: search-on-clear, stairs, wandering checks, progressive chests, gates
-  _Files:_ microlite-tactics-skirmish.html (engine script)
+  _Files:_ index.html (engine script)
   _Subplan:_ .playbook/T2.subplan.md
   _Verify:_ node .tmp/run-gates.js (script in the subplan) prints failed: [] and total: 404, and the gate names listed in the subplan are present
   _Blocks:_ T3 starts only after this verify passes
   _Lessons:_ a floor that ends only at its stairs turns every auto-play driver into a stall unless the driver takes the stairs; the smoke driver (gate "smoke: seed 99") now walks to the stairs and calls doStairs. Gate titles "stairs refused" and "stairs placement" are as the doer named them. Contracts that change the terminal condition must list the drivers that depend on it.
 
 - [DONE] T3 UI: stage overlays, stairs control, banner, board marker, legend
-  _Files:_ microlite-tactics-skirmish.html (style, body, UI script)
+  _Files:_ index.html (style, body, UI script)
   _Subplan:_ .playbook/T3.subplan.md
   _Verify:_ node .tmp/run-gates.js still prints failed: [] and total: 404; rg -n 'id="stage"|id="hud"|overlay-info' finds the new markup; rg -n "descendDungeon\(\)" shows no call inside render(); both script blocks pass node --check. No browser run here.
   _Lessons:_ subplan line numbers were stale (UI script starts near line 3808, not 3577); unique old-string anchors worked with no mismatch, so rg line numbers only served as a sanity check. Leader re-ran gates (404/404), rg checks and node parse of both blocks: pass.
@@ -42,7 +42,7 @@ Baseline (BASE-02, 2026-11-03): browser suite 147/148 before any edit. Failing: 
 
 - [DONE] T6 Browser assertions for stairs, wanderers, and the no-scroll layout (1280x800: 166/166; 1036x647: 166/166; 390x844: 165/165; see critique R-50)
   _Files:_ .tmp/verify-browser.js
-  _Verify:_ served page (http://127.0.0.1:8791/microlite-tactics-skirmish.html) with .tmp/verify-browser.js evaluated via indirect eval returns failed: [] and total equal to the count written in T6's report. Old descend and fixed-dial assertions are replaced, not deleted.
+  _Verify:_ served page (http://127.0.0.1:8791/index.html) with .tmp/verify-browser.js evaluated via indirect eval returns failed: [] and total equal to the count written in T6's report. Old descend and fixed-dial assertions are replaced, not deleted.
   _Blocks:_ depends on T3 (needs #stage and #hud)
 
 ## Layer 3 - sequential

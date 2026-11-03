@@ -1,6 +1,6 @@
 # Microlite Tactics: Player Rules
 
-This is the player-facing reference for the rules the game currently enforces. It follows the game contract in `microlite-tactics-skirmish.html`. A rule marked **House rule** is specific to this game. A note under **Not implemented** describes a proposal or source rule that the game does not currently use. See [Inspirations](./inspirations.md) for what the game borrowed or adapted from other systems and which sources informed design without supplying a current rule.
+This is the player-facing reference for the rules the game currently enforces. It follows the game contract in `index.html`. A rule marked **House rule** is specific to this game. A note under **Not implemented** describes a proposal or source rule that the game does not currently use. See [Inspirations](./inspirations.md) for what the game borrowed or adapted from other systems and which sources informed design without supplying a current rule.
 
 ## Objective and turns
 
