@@ -2,43 +2,39 @@
 
 Requirement type: layout. This file is the governing spec for how the game view is arranged on screen. The header contract in `index.html` points here (R53); rules about what the controls do live in `rules.md`.
 
-Status: CURRENT, 2026-11-03. Basis: operator messages of 2026-11-03 (split row below the map, log to the right, extra actions beside the radial, the game always fits, no scrollbars).
+Status: CURRENT, 2026-11-03. Basis: operator messages of 2026-11-03. The operator set two hard rules and said everything else may move, in widescreen or portrait.
 
-Scope: the game view (map, turn status, unit statistics, actions, log, legend, credits, map selector and buttons). The campaign town screen is outside the no-scroll rule (LAY-9).
+Scope: the game view (map, turn status, unit statistics, action radial, log, legend, credits, map selector and buttons). The campaign town screen is outside the no-scroll rule (LAY-9).
 
-## Fit
+## Hard rules
 
-- **LAY-1 Always fits.** The game view SHALL fit the window with no scrollbar at every viewport size. Reference sizes that must pass: 1280x800 (desktop), 1036x647 (short laptop), 390x844 (phone).
-- **LAY-2 No internal scrolling.** No map, panel, log or action list SHALL show a scrollbar. Content that would overflow is clipped, not scrolled. The log shows its newest entries first. On phones the log is a short strip, so only its newest lines are visible; the full log is not reachable on a phone.
+- **LAY-1 Map above unit and radial.** The map sits in one area. Directly below it, in a similar-sized area, unit statistics sit on the left and the action radial on the right. This holds in every orientation.
+- **LAY-2 Always fits, no scrolling.** The game view SHALL fit the window with no scrollbar and no clipped map at every viewport size. Panels that cannot show all their text clip it; they never scroll. Reference sizes: 1280x800 (desktop), 1036x647 (short laptop), 390x844 (phone).
 
-## Desktop arrangement (window wider than 640px)
+## Everything else is movable
 
-- **LAY-3 Column order.** The map sits at the top of the left column. Turn status sits directly below the map. Below turn status is a row: unit statistics on the left, the action radial on the right. The game log is a column to the right of the left column, full height.
-- **LAY-4 Extra actions beside the radial.** Actions beyond the six radial slots (Stop moving, Loot, submenu items, Back and the like) SHALL sit to the right of the radial, never below it.
-- **LAY-5 Legend and credits.** The legend and credits sit under the game log in the right column.
-- **LAY-6 Controls.** The map selector and the buttons sit in a fixed row below the game view.
+Turn status, the log, legend, credits, the map selector and the buttons may sit anywhere the hard rules allow: beside the map, below the unit row, or in a column. The arrangement may differ between widescreen and portrait.
 
-## Phone arrangement (window 640px wide or narrower)
+## Current arrangement
 
-- **LAY-7 Single column.** Map, turn status, unit statistics, actions, log, then controls, in that order, one column at full width.
-- **LAY-8 Phone reductions.** The legend and credits are hidden on phones. The log is a short strip. The radial scales to 60%, keeping touch targets at least 44px.
+- **Widescreen desktop (wider than 640px and taller than 500px):** map, turn status and the unit/radial row in the left column; log, legend and credits in the right column; buttons below.
+- **Portrait phone (640px wide or narrower):** map, then unit and radial side by side, then turn status, then the log strip, then buttons.
+- **Short landscape (wider than 640px and 500px or shorter):** map and the unit/radial row in the left column; turn status and the log in the right column. Legend and credits are hidden. The map and row need a viewport about 400px tall to fit the 9px hex floor (LAY-3). Below that the map clips.
 
-## Fixed heights and fitting
+## Sizing
 
-- **LAY-9 Fixed panel heights.** Turn status, unit statistics and actions keep the same height across unit selection, menus, move previews and phases. Only the map area changes size, and it does so only with the window.
-- **LAY-10 Map scale.** The hex size SHALL be the largest that shows the whole map inside the map area, clamped to 10 to 22 px. On phones (window 640px wide or narrower) the lower bound is 9 px: the phone map area cannot show the full text of the turn status, stats and actions at 10 px, and this trade is taken deliberately. Resizing the window re-fits the map.
-- **LAY-11 Radial scale.** The radial SHALL scale to the actions panel height, between 50% and 80%.
-- **LAY-14 Short landscape.** On a window wider than 640px and 500px or shorter (phone in landscape), the map takes the left column at full height. Turn status sits top right; unit statistics and the radial sit below it on the right. Legend and credits are hidden. The radial's scale is limited by the 50% floor of LAY-11, so at about 300px height its outer slots clip by roughly 13px. This is a known trade, not yet fixed.
-- **LAY-12 Stairs on screen.** Because the whole map is visible (LAY-10), the stairs are always on screen. The map does not scroll to the stairs.
+- **LAY-3 Map scale.** The hex size SHALL be the largest that shows the whole map inside the map area, clamped to 10 to 22 px. On phones (window 640px wide or narrower) or windows 500px tall or shorter, the lower bound is 9 px, a deliberate trade for fit. Resizing the window re-fits the map.
+- **LAY-4 Radial scale.** The radial SHALL scale to its panel height, between 50% and 80%. At the 50% floor the radial is about 125px tall; a shorter panel clips its outer slots.
+- **LAY-5 Fixed panel heights.** Turn status, unit statistics and actions keep the same height across unit selection, menus, move previews and phases. Only the map area changes size, and it does so only with the window.
+- **LAY-6 Stairs on screen.** Because the whole map is visible, the stairs are always on screen. The map does not scroll to the stairs.
 
 ## Campaign town
 
-- **LAY-13 Town exception.** While the campaign town screen is shown, the game view is hidden. The town screen MAY scroll inside itself.
+- **LAY-7 Town exception.** While the campaign town screen is shown, the game view is hidden. The town screen MAY scroll inside itself.
 
 ## How this is checked
 
 - Browser at each reference size: the document and every game panel have no vertical or horizontal overflow (scroll height not greater than client height).
 - The map's full rectangle lies inside the map area at each size.
+- The unit and radial areas sit directly below the map, unit left, radial right.
 - Panel heights for turn status, unit statistics and actions are the same after selecting a second unit, opening a submenu, previewing a move, and in search phase.
-- Desktop: the log is right of the map column, and extra actions are right of the radial.
-- Phone: one column in the order of LAY-7.

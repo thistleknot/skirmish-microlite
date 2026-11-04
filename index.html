@@ -438,14 +438,14 @@ button.on{background:#d9b869;color:#10131c}
   #layout{flex-direction:column}
   #app{gap:3px;width:100%}
   h1{display:none}
-  #turnPanel{flex:0 0 140px;height:140px;font-size:11.5px}
+  #turnPanel{order:2;flex:0 0 92px;height:92px;font-size:11px}
   body>div:last-of-type button,body>div:last-of-type select{font-size:11px;padding:3px 5px;margin:1px}
-  #lowerRow{flex:0 0 auto;height:auto;flex-direction:column;gap:3px}
-  #statsPanel{flex:0 0 108px;height:108px;font-size:11px}
-  #actionsPanel{flex:0 0 150px;height:150px}
+  #lowerRow{order:1;flex:0 0 144px;height:144px;flex-direction:row;gap:4px}
+  #statsPanel{flex:1 1 0;min-width:0;height:auto;font-size:10.5px}
+  #actionsPanel{flex:1 1 0;min-width:0;height:auto}
   #actionsPanel #acts{gap:8px}
   .drawer{max-width:150px}
-  #sidePanel{width:100%;flex:0 0 44px;height:44px}
+  #sidePanel{width:100%;flex:0 0 40px;height:40px}
   #legend,#credits{display:none}
   .dial .slot{font-size:13px}
   .dial .hub{font-size:14px}
@@ -453,10 +453,12 @@ button.on{background:#d9b869;color:#10131c}
 }
 @media (max-height:500px) and (min-width:641px){
   h1{display:none}
-  #app{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:6px}
-  #boardwrap{grid-column:1;grid-row:1/3}
+  #layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:6px}
+  #app{display:contents}
+  #boardwrap{grid-column:1;grid-row:1}
+  #lowerRow{grid-column:1;grid-row:2;flex:none;height:118px}
   #turnPanel{grid-column:2;grid-row:1;flex:none;height:auto;font-size:12px}
-  #lowerRow{grid-column:2;grid-row:2;flex:none;height:auto}
+  #sidePanel{grid-column:2;grid-row:2;flex:none;height:118px;width:auto}
   #statsPanel{flex:1 1 0;font-size:11px}
   #actionsPanel{flex:1 1 0;height:auto}
   #legend,#credits{display:none}
