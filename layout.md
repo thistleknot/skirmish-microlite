@@ -28,6 +28,7 @@ Scope: the game view (map, turn status, unit statistics, actions, log, legend, c
 - **LAY-9 Fixed panel heights.** Turn status, unit statistics and actions keep the same height across unit selection, menus, move previews and phases. Only the map area changes size, and it does so only with the window.
 - **LAY-10 Map scale.** The hex size SHALL be the largest that shows the whole map inside the map area, clamped to 10 to 22 px. On phones (window 640px wide or narrower) the lower bound is 9 px: the phone map area cannot show the full text of the turn status, stats and actions at 10 px, and this trade is taken deliberately. Resizing the window re-fits the map.
 - **LAY-11 Radial scale.** The radial SHALL scale to the actions panel height, between 50% and 80%.
+- **LAY-14 Short landscape.** On a window wider than 640px and 500px or shorter (phone in landscape), the map takes the left column at full height. Turn status sits top right; unit statistics and the radial sit below it on the right. Legend and credits are hidden. The radial's scale is limited by the 50% floor of LAY-11, so at about 300px height its outer slots clip by roughly 13px. This is a known trade, not yet fixed.
 - **LAY-12 Stairs on screen.** Because the whole map is visible (LAY-10), the stairs are always on screen. The map does not scroll to the stairs.
 
 ## Campaign town
