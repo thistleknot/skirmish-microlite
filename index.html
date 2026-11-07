@@ -161,7 +161,7 @@
        SHALL avoid the check and SHALL retain the existing risk of a parting attack. While threatened, the spell
        picker SHALL show each spell's focus DC and explain the check's failure cost before the player commits.
    R58 WHEN a hero attempts to break an adjacent table platform, the hero SHALL spend an action and roll d20 +
-       Physical rank + STR modifier + steady-ground bonus against DC 12. A failed check SHALL leave the table
+       Physical rank + STR modifier + steady-ground bonus against DC 10 (average). A failed check SHALL leave the table
        intact. A successful check SHALL lower its tile to ground; a unit on that tile SHALL take 1 HP fall damage.
    R59 WHEN a unit crosses from outside an awake, non-fleeing, unturned enemy's legal melee reach into it during one movement, that enemy
        SHALL make one free normal melee reaction per committed movement, without an extra parting-shot bonus.
@@ -483,7 +483,7 @@ button.on{background:#d9b869;color:#10131c}
     <p>Melee coordination: another attacker from a different side gains +1, or +2 opposite the first attack. Use the highest rear, Aid or coordination bonus; Sneak damage suppresses coordination. History resets each side's phase.</p>
   </details>
   <div id="log"></div>
-  <div id="legend">Hexes: pit/channel = -1 · table or barrel = +1 (Break table: Physical + STR, DC 12) · raised ledge = +2 (Physical Climb, DC 20) · ! = revealed trap; sprung pit traps remain open as depressions. Hatched = rock · solid/dashed door = closed/open · dark brown = furniture · arrow = facing · blue = move range · red = target · stairs icon = stairs down; up-stairs icon = way out.</div>
+  <div id="legend">Hexes: pit/channel = -1 · table or barrel = +1 (Break table: Physical + STR, DC 10) · raised ledge = +2 (Physical Climb, DC 20) · ! = revealed trap; sprung pit traps remain open as depressions. Hatched = rock · solid/dashed door = closed/open · dark brown = furniture · arrow = facing · blue = move range · red = target · stairs icon = stairs down; up-stairs icon = way out.</div>
   <div id="credits">Player references: <a href="./rules.md" target="_blank" rel="noopener">Rules</a> · <a href="./inspirations.md" target="_blank" rel="noopener">Inspirations</a>. Unit icons by Kier Heyl, Lorc and Delapouite from <a href="https://game-icons.net">game-icons.net</a>, licensed <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>. Rules: Microlite20 (OGL 1.0a).</div>
   </section>
 </div>
@@ -587,7 +587,16 @@ const E = (() => {
     arrow: { name: 'Arrow', price: 1, ammo: true, effect: null },
     bolt: { name: 'Crossbow Bolt', price: 1, ammo: true, effect: null },
     spell_scroll: { name: 'Spell Scroll', price: 80, effect: null },
+    potion_strength: { name: 'Potion of Strength', price: null, effect: 'strength' },
+    potion_regeneration: { name: 'Potion of Regeneration', price: null, effect: 'regen' },
+    ring_protection: { name: 'Ring of Protection', price: null, effect: 'ring' },
+    wand_magic_missile: { name: 'Wand of Magic Missile', price: null, effect: 'wand' },
+    scroll_sleep: { name: 'Scroll of Sleep', price: null, effect: 'sleep' },
+    amulet_health: { name: 'Amulet of Health', price: null, effect: 'amulet' },
   };
+  // Items the radial can use. Ring and Amulet work while carried, so they are never listed.
+  const ACTIVE_EFFECTS = ['heal', 'holy', 'oil', 'strength', 'regen', 'wand', 'sleep'];
+  const usable = k => ACTIVE_EFFECTS.includes((ITEM[k] || {}).effect);
   const ARMOR = {
     none: { name: 'None', type: null, bonus: 0, price: null },
     padded: { name: 'Padded', type: 'light', bonus: 1, price: 2 },
@@ -602,6 +611,12 @@ const E = (() => {
     banded: { name: 'Banded Mail', type: 'heavy', bonus: 6, price: 250 },
     halfplate: { name: 'Half-plate', type: 'heavy', bonus: 7, price: 600 },
     fullplate: { name: 'Full Plate', type: 'heavy', bonus: 8, price: 1500 },
+    robe: { name: 'Robe', type: null, bonus: 0, price: 5 },
+    studded_plus1: { name: 'Studded Leather +1', type: 'light', bonus: 4, price: null },
+    elven_chain: { name: 'Elven Chain Mail', type: 'medium', bonus: 6, price: null },
+    poison_oak_armor: { name: 'Poison Oak Armor', type: 'light', bonus: 4, price: null, trapped: true },
+    hollow_mail: { name: 'Hollow Mail', type: 'medium', bonus: 5, price: null, cursed: true, uncursed: 'hollow_mail_uncursed' },
+    hollow_mail_uncursed: { name: 'Hollow Mail (uncursed)', type: 'medium', bonus: 5, price: null },
   };
   const SHIELD = {
     light_wood: { name: 'Light Wooden Shield', bonus: 1, price: 3 },
@@ -849,6 +864,8 @@ const E = (() => {
         if (!outside.length) continue;
         outside[ri(outside.length)].kind = 'chest';
       }
+      // Floor one always has a magic find in a chest outside the entry room.
+      if (floor === 1) outside.find(f => f.kind === 'chest').magic = true;
       const floorTiles = [];
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y][x] === '0' && !nearDoor(x, y)) floorTiles.push([x, y]);
       const TRAP_KINDS = [
@@ -862,9 +879,11 @@ const E = (() => {
       const freeIn = r => { const out = []; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (g[y][x] !== '#') out.push([x, y]); return out; };
       const P = shuffle(freeIn(r0)).slice(0, 4);
       const far = rooms.slice(1).sort((a, b) => (Math.abs(b.x - r0.x) + Math.abs(b.y - r0.y)) - (Math.abs(a.x - r0.x) + Math.abs(a.y - r0.y)));
+      // Floor two fields five enemies: floor one (four) to floor two is otherwise nearly flat (OQ-012).
+      const enemyCount = floor === 2 ? 5 : 4;
       const E = [];
-      for (const r of far) { for (const c of shuffle(freeIn(r))) if (E.length < 4) E.push(c); if (E.length >= 4) break; }
-      if (P.length < 4 || E.length < 4) continue;
+      for (const r of far) { for (const c of shuffle(freeIn(r))) if (E.length < enemyCount) E.push(c); if (E.length >= enemyCount) break; }
+      if (P.length < 4 || E.length < enemyCount) continue;
       const occupied = [...P, ...E].map(([x, y]) => key(x, y));
       const blocked = ([x, y]) => occupied.includes(key(x, y)) || doors.some(([a, b]) => a === x && b === y)
         || furn.some(f => f.x === x && f.y === y) || traps.some(t => t.x === x && t.y === y);
@@ -907,10 +926,10 @@ const E = (() => {
       // otherwise the lair holds ordinary monsters.
       const enemies = [];
       const floorPool = FLOOR_POOL[Math.min(floor, 3)];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < enemyCount; i++) {
         let k = floorPool[ri(floorPool.length)];
         if (floor >= 3 && i > 0) k = ['hobgoblin', 'orc', 'war_dog'][ri(3)];
-        enemies.push([k, MONSTER[k].name + ' ' + 'ABCD'[i]]);
+        enemies.push([k, MONSTER[k].name + ' ' + 'ABCDE'[i]]);
       }
       if (floor >= 3) enemies[0][1] = `${enemies[0][0] === 'ogre' ? 'Ogre' : 'Troll'} Boss`;
       const lair = E[0];
@@ -923,7 +942,7 @@ const E = (() => {
       const m = { name: 'Dungeon', rows, elevationProps, P, E, traps, doors, secrets, furn, enemies, lair, stairs: { x: stairX, y: stairY }, rooms: rooms.map(r => ({ ...r })), allowChoke: true, attempts: attempt, fallback: false };
       if (validate(m).ok) return m;
     }
-    return { ...MAPS[0], attempts: 60, fallback: true };
+    return { ...MAPS[0], stairs: { x: 11, y: 7 }, attempts: 60, fallback: true };
   };
 
   // ---- skills and attack math ----
@@ -942,7 +961,7 @@ const E = (() => {
   const meleeDmg = (u, w) => (w.hand === 2 ? 2 : 1) * bonus(u.stats.STR) + fighterOnly(u);
   const chain = b => (b >= 11 ? [b, b - 5, b - 10] : b >= 6 ? [b, b - 5] : [b]);
   const armorClass = u => u.isMonster ? u.ac
-    : 10 + bonus(u.stats.DEX) + (u.armor ? u.armor.bonus : 0) + (u.shield ? u.shield.bonus : 0) + (u.evade || 0) + u.eff.mageArmor + u.eff.shield;
+    : 10 + bonus(u.stats.DEX) + (u.armor ? u.armor.bonus : 0) + (u.shield ? u.shield.bonus : 0) + (u.evade || 0) + u.eff.mageArmor + u.eff.shield + (u.inv && u.inv.ring_protection ? 1 : 0);
   const twinOK = a => !a.isMonster && !!a.offhand && a.weapon.light && a.offhand.light && (a.cls === 'fighter' || a.cls === 'rogue');
 
   const shotsLeft = u => { const r = u.rwpn && u.rwpn.ranged; if (!r) return 0; return r.reusable ? Infinity : (u.inv[r.ammo] || 0); };
@@ -1151,12 +1170,17 @@ const E = (() => {
   const pathField = (S, targets, u = { cls: '' }) => new Map([...walkField(S, u, targets, Infinity, true)].map(([k, r]) => [k, r.steps]));
 
   // ---- damage and healing ----
-  const applyDamage = (t, dmg) => {
+  const applyDamage = (t, dmg0) => {
     if (t.state === 'dead') return '';
     t.eff.asleep = 0;
+    const absorbed = Math.min(t.eff.temp || 0, dmg0);
+    t.eff.temp = (t.eff.temp || 0) - absorbed;
+    const dmg = dmg0 - absorbed;
+    if (absorbed && dmg <= 0) return ` ${t.name}'s temporary HP absorbs ${absorbed}.`;
+    if (!t.isMonster && t.state === 'down' && dmg > 0) { t.state = 'dead'; return ` ${t.name} is struck down for good.`; }
     if (t.isMonster) {
       t.hp -= dmg;
-      if (t.hp <= 0) { t.hp = 0; t.state = 'dead'; return ' It is destroyed.'; }
+      if (t.hp <= 0) { t.hp = 0; t.state = 'down'; return ' It is knocked out.'; }
       return '';
     }
     let rem = dmg, note = '';
@@ -1209,6 +1233,7 @@ const E = (() => {
     return `${a.name}'s ${a.rwpn.name} cannot reach ${t.name}.`;
   };
   const canAct = (S, a, t, kind, spk) => {
+    if (kind === 'magic') return canUseItem(S, a, t, spk);
     if (!t || t.state === 'dead' || a.state !== 'alive') return false;
     if (dist(a, t) > 1 && sightBlocked(S, a, t)) return false;
     const dd = dist(a, t), foe = t.side !== a.side;
@@ -1220,6 +1245,8 @@ const E = (() => {
       case 'trip': case 'push': case 'disarm': return foe && dd === 1 && t.state === 'alive' && !a.moved && !a.acted && !a.walked && !a.eff.inPit && !a.eff.prone;
       case 'charge': return foe && !!chargeLine(S, a, t);
       case 'aid': return !foe && dd === 1 && t.state === 'alive' && t !== a && !a.moved && !a.acted && !a.walked && !a.eff.inPit && !a.eff.prone;
+      case 'finish': return foe && dd === 1 && t.state === 'down' && a.state === 'alive' && !a.acted && !a.eff.asleep;
+      case 'aidDown': return !foe && dd === 1 && t.state === 'down' && t !== a && !a.moved && !a.acted && !a.walked && !a.eff.inPit && !a.eff.prone;
       case 'melee': return foe && dd === 1 && canMeleeAtZ(S, a, t);
       case 'twin': return foe && dd === 1 && canMeleeAtZ(S, a, t) && twinOK(a);
       case 'throw': return foe && canThrow(a, t, S);
@@ -1337,7 +1364,7 @@ const E = (() => {
     if (cell === 'D') {
       const dmg = dice(`${lvl}d8`);
       const note = applyDamage(t, dmg);
-      if (t.state === 'dead' || t.hp <= 0) return [head + ` It is damaged for ${dmg} and destroyed.`];
+      if (t.hp <= 0) { t.state = 'dead'; return [head + ` It is damaged for ${dmg} and destroyed.`]; }
       t.eff.turned = 1;
       return [head + ` It is damaged for ${dmg} and turned.` + note];
     }
@@ -1427,7 +1454,7 @@ const E = (() => {
   const doBreakTable = (S, c, x, y) => {
     if (!c || c.isMonster || c.state !== 'alive' || c.eff.asleep || c.acted || S.over || S.phase !== 'player' || S.focus !== c.id
       || !tableTargets(S, c).some(p => p.x === x && p.y === y)) return null;
-    const roll = d(20), total = roll + rankOf(c, 'physical') + bonus(c.stats.STR) + steadyOf(c), dc = 12;
+    const roll = d(20), total = roll + rankOf(c, 'physical') + bonus(c.stats.STR) + steadyOf(c), dc = 10;
     if (total < dc) return [`${c.name} fails to break the table (${total} vs DC ${dc}).`];
     setCell(S, x, y, '0');
     const fallen = S.units.find(u => u.state === 'alive' && u.x === x && u.y === y);
@@ -1623,7 +1650,7 @@ const E = (() => {
       id: 'P' + idx, side: 'P', isMonster: false, name: p.name, abbr: p.abbr, icon: p.icon, cls: p.cls, race: p.race, atkB: 1, skillB: 1, evade: 0, ms: 0, known: [...(p.spells || [])],
       stats: st, state: 'alive', x: pos[0], y: pos[1], facing: 0,
       weapon: WEAPON[p.weapon], offhand: p.offhand ? WEAPON[p.offhand] : null,
-      rwpn: p.ranged ? WEAPON[p.ranged] : null, inv: { ...(p.inv || {}) },
+      rwpn: p.ranged ? WEAPON[p.ranged] : null, inv: { healing_potion: 1, ...(p.inv || {}) },
       armor: ARMOR[p.armor], shield: p.shield ? SHIELD[p.shield] : null,
       spells: p.spells, signatures: [...(p.signatures || [])],
       eff: { mageArmor: 0, shield: 0, asleep: 0, turned: 0 }, debt: 0,
@@ -1641,7 +1668,7 @@ const E = (() => {
     return {
       id: 'E' + idx, side: 'E', isMonster: true, name, abbr: t.abbr, icon: t.icon, cls: 'monster', race: '', atkB: 0, skillB: 0, evade: 0, ms: 0, known: [],
       hd: t.hd, hp: t.hp, hpMax: t.hp, state: 'alive', x, y, facing: 3,
-      ac: t.ac, dexB: t.dexB, morale: t.morale, undead: !!t.undead, melee: t.melee, ranged: t.ranged || null,
+      ac: t.ac, dexB: t.dexB, morale: t.morale, undead: !!t.undead, melee: t.melee, ranged: t.ranged || null, item: [null, 'healing_potion', 'oil', 'holy_water', null, null][d(6) - 1],
       stats: { STR: 0, DEX: 10, MIND: 10 }, weapon: null, offhand: null, rwpn: null, inv: {}, armor: null, shield: null,
       spells: [], eff: { mageArmor: 0, shield: 0, asleep: 0, turned: 0 }, debt: 0, undeadUses: 0,
     };
@@ -1668,7 +1695,7 @@ const E = (() => {
 
   // A campaign record is plain data: everything a unit needs to be rebuilt in the next battle.
   const recordOf = u => ({
-    name: u.name, abbr: u.abbr, icon: u.icon, race: u.race, cls: u.cls, atkB: u.atkB, skillB: u.skillB, evade: u.evade, ms: u.ms, known: [...(u.known || [])], feats: [...(u.feats || [])], stats: { ...u.stats }, maxSTR: u.maxSTR,
+    name: u.name, abbr: u.abbr, icon: u.icon, race: u.race, cls: u.cls, atkB: u.atkB, skillB: u.skillB, evade: u.evade, ms: u.ms, known: [...(u.known || [])], feats: [...(u.feats || [])], stats: { ...u.stats }, maxSTR: u.maxSTR, hireling: !!u.hireling, weary: u.eff.weary || 0,
     hpMax: u.hpMax, hp: u.hp, debt: u.debt || 0,
     weapon: u.keys.weapon, offhand: u.keys.offhand, armor: u.keys.armor, shield: u.keys.shield, ranged: u.keys.ranged,
     inv: { ...u.inv }, spells: [...u.spells], signatures: [...(u.signatures || [])],
@@ -1679,8 +1706,8 @@ const E = (() => {
     weapon: WEAPON[r.weapon], offhand: r.offhand ? WEAPON[r.offhand] : null, rwpn: r.ranged ? WEAPON[r.ranged] : null,
     armor: ARMOR[r.armor], shield: r.shield ? SHIELD[r.shield] : null,
     inv: { ...r.inv }, spells: [...r.spells], signatures: [...(r.signatures || [])],
-    eff: { mageArmor: 0, shield: 0, asleep: 0, turned: 0 }, debt: r.debt || 0,
-    hpMax: r.hpMax, hp: r.hp, maxSTR: r.maxSTR, feats: [...(r.feats || [])], undeadUses: 2 + (r.atkB || 1) + bonus(r.stats.MIND),
+    eff: { mageArmor: 0, shield: 0, asleep: 0, turned: 0, weary: r.weary || 0, temp: ((r.feats || []).includes('stalwart') ? dice('1d6') : 0) + (ARMOR[r.armor] && ARMOR[r.armor].cursed ? 2 : 0) }, debt: r.debt || 0,
+    hpMax: r.hpMax, hp: r.hp, maxSTR: r.maxSTR, feats: [...(r.feats || [])], hireling: !!r.hireling, heroPool: casterLevel(r), undeadUses: 2 + casterLevel(r) + bonus(r.stats.MIND),
     keys: { weapon: r.weapon, offhand: r.offhand || null, armor: r.armor, shield: r.shield || null, ranged: r.ranged || null },
   });
 
@@ -1709,6 +1736,7 @@ const E = (() => {
     }
     C.delve = Number.isInteger(C.delve) && C.delve >= 0 ? C.delve : 0;
     C.inDelve = !!C.inDelve;
+    if (C.inDelve) { C.inDelve = false; C.delve = 0; C.log = C.log || []; C.log.push('The delve was abandoned when the game closed. Oakmoor is open.'); }
     C.stash = C.stash || {};
     C.log = C.log || [];
     return C;
@@ -1739,6 +1767,69 @@ const E = (() => {
    * Maintain: dungeon-only consumables remain loot rewards.
    * Assert: purchase validation uses this shared stock list.
    */
+  // Hired man-at-arms: bought in town, paid per delve, and takes no checkpoint picks. Two at most.
+  const HIRE_FEE = 60, UPKEEP = 10, MAX_HIRELINGS = 2;
+  const HIRELING = { name: 'Man-at-Arms', abbr: 'MA', icon: 'dwarf', race: 'human', cls: 'fighter', stats: { STR: 12, DEX: 11, MIND: 10 }, weapon: 'longsword', offhand: null, armor: 'scale', shield: 'light_steel', ranged: null, inv: {}, spells: [] };
+  const hirelingCount = C => [...C.party, ...C.reserve].filter(r => r.hireling).length;
+  /** Hire a man-at-arms into the reserve.
+   * Require: Oakmoor, gold for the fee, and fewer than MAX_HIRELINGS hired.
+   * Guarantee: deduct the fee and add one hireling to the reserve; a refusal changes nothing.
+   * Maintain: hirelings have unique names.
+   */
+  const hire = C => {
+    if (C.inDelve) return res(false, 'Hiring is done in Oakmoor.');
+    const n = hirelingCount(C);
+    if (n >= MAX_HIRELINGS) return res(false, 'The company keeps two hired men at most.');
+    if (C.gold < HIRE_FEE) return res(false, 'Not enough gold to hire a man-at-arms.');
+    const r = recordOf(mkPlayer({ ...HIRELING, name: `Man-at-Arms ${'AB'[n]}`, abbr: `M${'AB'[n]}` }, 40 + n, [0, 0]));
+    r.hireling = true;
+    C.gold -= HIRE_FEE; C.reserve.push(r);
+    return res(true, `Hired ${r.name} for ${HIRE_FEE} gp.`);
+  };
+  /** Pay each hired man's upkeep when a delve starts; one who cannot be paid leaves.
+   * Require: a campaign about to start a delve.
+   * Guarantee: pay UPKEEP per hireling in gold order; unpaid hirelings leave the party and reserve.
+   * Maintain: campaign heroes are never removed here.
+   */
+  const payUpkeep = C => {
+    const left = [];
+    const pay = list => list.filter(r => {
+      if (!r.hireling) return true;
+      if (C.gold >= UPKEEP) { C.gold -= UPKEEP; return true; }
+      left.push(r.name); return false;
+    });
+    C.party = pay(C.party); C.reserve = pay(C.reserve);
+    if (left.length) C.log.push(`Unpaid, ${left.join(', ')} ${left.length === 1 ? 'leaves' : 'leave'} the company.`);
+    return left;
+  };
+  /** Spend one Heroism point: +1 to every d20 the hero rolls until the next player phase.
+   * Require: a ready, living party hero with points left and no Heroism already active.
+   * Guarantee: no effect when refused; otherwise one point is spent and the bonus is active.
+   */
+  /** Camp for the night on a cleared floor. A roll of 1 interrupts: no healing, wanderers arrive, and every hero is Weary.
+   * A roll of 2-6 heals each living hero by half its lost HP and clears Weary.
+   * Require: search phase, no enemy alive, every living hero in one room.
+   * Guarantee: a refusal changes nothing. A night never advances searchRounds or clears spell debt.
+   */
+  const campNight = S => {
+    if (!S.searchPhase || S.over || S.units.some(u => u.side === 'E' && u.state === 'alive')) return null;
+    const living = S.units.filter(u => u.side === 'P' && u.state === 'alive');
+    if (!living.length) return null;
+    const room = roomAt(S, living[0].x, living[0].y);
+    if (!room || living.some(u => roomAt(S, u.x, u.y) !== room)) return null;
+    if (d(6) === 1) {
+      living.forEach(u => { u.eff.weary = 1; });
+      const arrived = spawnWanderers(S);
+      return ['The night is interrupted; every hero is Weary.', ...arrived];
+    }
+    living.forEach(u => { u.eff.weary = 0; heal(u, Math.max(1, Math.floor((u.hpMax - u.hp) / 2))); });
+    return ['The company sleeps through the night and recovers half its lost HP.'];
+  };
+  const spendHeroism = (S, u) => {
+    if (!u || u.side !== 'P' || u.state !== 'alive' || u.eff.heroism || !(u.heroPool > 0) || S.over || S.phase !== 'player') return null;
+    u.heroPool -= 1; u.eff.heroism = 1;
+    return [`${u.name} spends Heroism (+1 to every roll until the next turn; ${u.heroPool} left).`];
+  };
   const canBuy = k => [...GEAR, 'arrow', 'bolt'].includes(k);
   const buy = (C, k, n = 1) => {
     if (C.inDelve) return res(false, 'Supplies are available after the delve.');
@@ -1752,6 +1843,7 @@ const E = (() => {
   };
   const sell = (C, k) => {
     if (C.inDelve) return res(false, 'The market is closed during a delve.');
+    if (priceOf(k) === null) return res(false, 'Merchants will not buy what they cannot verify.');
     if (!C.stash[k]) return res(false, 'None in the stash.');
     C.stash[k] -= 1;
     if (!C.stash[k]) delete C.stash[k];
@@ -1772,12 +1864,37 @@ const E = (() => {
     const r = C.party[i];
     if (!r || !C.stash[k]) return res(false, 'Nothing to equip.');
     if (!canEquip(r.cls, slot, k)) return res(false, `${r.name} cannot use ${nameOf(k)} there.`);
+    if (slot === 'armor' && ARMOR[r.armor] && ARMOR[r.armor].cursed) return res(false, `The curse holds the ${ARMOR[r.armor].name} fast.`);
     const sk = SLOT_KEY[slot], old = r[sk];
     C.stash[k] -= 1;
     if (!C.stash[k]) delete C.stash[k];
     if (old && old !== 'none') C.stash[old] = (C.stash[old] || 0) + 1;
     r[sk] = k;
     return res(true, `${r.name} equips ${nameOf(k)}.`);
+  };
+  // Taking worn armor off. Trapped armor comes off freely; a cursed artifact holds fast until the curse is lifted.
+  const unequip = (C, i) => {
+    if (C.inDelve) return res(false, 'Equipment can only be changed in Oakmoor.');
+    const r = C.party[i];
+    if (!r || !ARMOR[r.armor] || r.armor === 'none') return res(false, 'Nothing to take off.');
+    if (ARMOR[r.armor].cursed) return res(false, `The curse holds the ${ARMOR[r.armor].name} fast.`);
+    const name = ARMOR[r.armor].name;
+    C.stash[r.armor] = (C.stash[r.armor] || 0) + 1;
+    r.armor = 'none';
+    return res(true, `${r.name} takes off the ${name}.`);
+  };
+  // The town wizard lifts a cursed artifact's curse for CURSE_FEE gold; the item goes to the stash uncursed.
+  const CURSE_FEE = 300;
+  const liftCurse = (C, i) => {
+    if (C.inDelve) return res(false, 'The town wizard sees the company in Oakmoor only.');
+    const r = C.party[i];
+    if (!r || !ARMOR[r.armor] || !ARMOR[r.armor].cursed) return res(false, 'No curse to lift.');
+    if (C.gold < CURSE_FEE) return res(false, `The town wizard wants ${CURSE_FEE} gp.`);
+    const name = ARMOR[r.armor].name, freed = ARMOR[r.armor].uncursed;
+    C.gold -= CURSE_FEE;
+    C.stash[freed] = (C.stash[freed] || 0) + 1;
+    r.armor = 'none';
+    return res(true, `The town wizard lifts the curse from the ${name} for ${CURSE_FEE} gp.`);
   };
   const rest = C => {
     if (C.inDelve) return res(false, 'The company must finish the delve before resting in town.');
@@ -1814,6 +1931,7 @@ const E = (() => {
   // Caster level pinned to the milestone (1 at the start); drives spell caps, DCs and scaling.
   const casterLevel = u => MILESTONE_LEVEL[Math.min(u.ms || 0, MILESTONE_LEVEL.length - 1)];
   const FEATS = {
+    stalwart: { name: 'Stalwart', desc: '+1d6 temporary HP each battle; it absorbs damage before HP.' },
     weapon_focus: { name: 'Weapon Focus', desc: '+1 to melee attack rolls.' },
     sharpshooter: { name: 'Sharpshooter', desc: '+1 to ranged attack rolls and +1 ranged damage.' },
     iron_will: { name: 'Iron Will', desc: '+2 to resist Sleep.' },
@@ -1824,10 +1942,12 @@ const E = (() => {
   const SKILLS = ['physical', 'subterfuge', 'knowledge', 'communication', 'survival'];
   const featN = (u, k) => ((u.feats || []).includes(k) ? 1 : 0);
   // Stand your ground: +1 to every d20 roll a unit makes while it has not walked this turn.
-  const luckOf = u => (u.eff.bless ? 1 : 0) - (u.eff.bane ? 1 : 0);
+  // Wounded: a living party hero at half HP or less rolls at -2 on every d20 until healed above half.
+  const woundedOf = u => (u.side === 'P' && u.state === 'alive' && u.hp * 2 <= u.hpMax ? -2 : 0);
+  const luckOf = u => (u.eff.bless ? 1 : 0) - (u.eff.bane ? 1 : 0) + woundedOf(u) + (u.eff.heroism ? 1 : 0) - (u.armor && u.armor.cursed ? 1 : 0) - (u.eff.weary ? 1 : 0);
   const steadyOf = u => (u.walked ? 0 : 1) + luckOf(u) - (u.eff.inPit ? 1 : 0);
   // Defense: armor class, plus the stand-your-ground bonus when the unit is holding its ground.
-  const defenseOf = u => armorClass(u) + steadyOf(u) + (u.eff.sanct ? 2 : 0);
+  const defenseOf = u => (u.state === 'down' ? armorClass(u) : armorClass(u) + steadyOf(u) + (u.eff.sanct ? 2 : 0));
   const encounterLevel = S => {
     const foes = S.units.filter(u => u.side === 'E');
     const monsterEL = foes.length ? Math.max(...foes.map(f => f.hd)) + Math.floor(Math.log2(foes.length)) : 0;
@@ -1950,17 +2070,27 @@ const E = (() => {
     const prev = Object.fromEntries(C.party.map(p => [p.name, p]));
     C.party = S.units.filter(u => u.side === 'P').map(u => {
       if (u.state === 'dead') { lost.push(u.name); return null; }
+      if (u.state === 'down') {
+        const roll = d(6) * 10 + d(6);
+        if (roll <= 35) { lost.push(u.name); C.log.push(`${u.name} is out of action: serious injury roll ${roll}, dead.`); return null; }
+        C.log.push(`${u.name} is out of action: serious injury roll ${roll}, recovers.`);
+      }
       const r = recordOf(u);
+      r.stats.STR = Math.min(r.stats.STR, r.maxSTR);
       if (u.state === 'down') r.hp = 1;
       const p = prev[u.name] || {};
       r.owed = [...(p.owed || [])];
       r.picked = [...(p.picked || [])];
       return r;
     }).filter(Boolean);
-    C.gold += S.loot.gold;
-    Object.entries(S.loot.items).forEach(([k, n]) => { C.stash[k] = (C.stash[k] || 0) + n; });
+    const banked = S.over === 'victory';
+    if (banked) {
+      C.gold += S.loot.gold;
+      Object.entries(S.loot.items).forEach(([k, n]) => { C.stash[k] = (C.stash[k] || 0) + n; });
+    }
     const result = S.over === 'defeat' ? 'Defeat' : S.dungeonRun && S.delveLevel < 3 ? `Floor ${S.delveLevel} cleared` : S.dungeonRun ? 'Dungeon victory' : 'Victory';
-    C.log.push(`${result} on day ${C.day}: ${S.loot.gold} gp recovered.`);
+    C.log.push(`${result} on day ${C.day}: ${banked ? S.loot.gold : 0} gp recovered.`);
+    if (!banked && (S.loot.gold || Object.keys(S.loot.items).length)) C.log.push('The battle loot is lost in defeat.');
     if (lost.length) C.log.push(`Fallen: ${lost.join(', ')}.`);
     if (S.over === 'victory') {
       const before = checkpointsFor(C.xp || 0);
@@ -1969,7 +2099,7 @@ const E = (() => {
       C.log.push(`+${el} encounter points (${C.xp} total).`);
       const after = checkpointsFor(C.xp);
       for (let m = before; m < after; m++) {
-        C.party.forEach(r => { r.owed = [...(r.owed || []), m]; r.ms = m + 1; });
+        C.party.forEach(r => { if (r.hireling) return; r.owed = [...(r.owed || []), m]; r.ms = m + 1; });
         C.log.push(`Checkpoint ${['I', 'II', 'III', 'IV'][m]} reached: each member takes ${PICKS_PER_MILESTONE} options.`);
       }
     }
@@ -1995,11 +2125,15 @@ const E = (() => {
       m.looted = true;
       const g = dice(`${m.hd}d4`);
       S.loot.gold += g; paid += g;
-      if (d(6) === 1) S.loot.items.healing_potion = (S.loot.items.healing_potion || 0) + 1;
+      if (m.item) S.loot.items[m.item] = (S.loot.items[m.item] || 0) + 1;
       if (d(20) === 1) S.loot.items.spell_scroll = (S.loot.items.spell_scroll || 0) + 1;
     });
     return paid;
   };
+  // Magic finds by dungeon floor. Each tier adds to the one before. Gear here is never sold; it is found.
+  const MAGIC_LOOT_1 = ['studded_plus1', 'poison_oak_armor', 'potion_strength', 'potion_regeneration', 'scroll_sleep', 'wand_magic_missile'];
+  const MAGIC_LOOT_2 = [...MAGIC_LOOT_1, 'elven_chain', 'ring_protection', 'amulet_health'];
+  const MAGIC_LOOT = { 1: MAGIC_LOOT_1, 2: MAGIC_LOOT_2, 3: [...MAGIC_LOOT_2, 'hollow_mail'] };
   // House rule chest table: 2d6 x 5 gp, plus one item.
   const chestItem = () => {
     const r = d(10);
@@ -2025,12 +2159,47 @@ const E = (() => {
       S.loot.items[k] = (S.loot.items[k] || 0) + q;
       found.push(`${q} x ${nameOf(k)}`);
     }
+    // A floor-one magic chest always holds a magic find; from floor two, any chest has a 1-in-6 chance of one.
+    const tier = Math.min(3, Math.max(1, S.delveLevel || 1));
+    if (f.magic || (tier >= 2 && d(6) === 1)) {
+      const pool = MAGIC_LOOT[tier], k = pool[d(pool.length) - 1];
+      S.loot.items[k] = (S.loot.items[k] || 0) + 1;
+      found.push(`1 x ${nameOf(k)}`);
+    }
     S.loot.gold += gold;
     return [`${c.name} opens a chest: ${gold} gp and ${found.join(', ')}.`];
   };
 
   // ---- consumables used in battle (house rules) ----
+  /** Whether carrier c may use item k on t right now (the magic items; potions and flasks use canAct).
+   * Require: item k is usable and c carries one. Guarantee: false changes nothing.
+   */
+  const canUseItem = (S, c, t, k) => {
+    const it = ITEM[k];
+    if (!t || !it || !usable(k) || (c.inv[k] || 0) < 1 || c.state !== 'alive' || t.state === 'dead') return false;
+    const foe = t.side !== c.side, dd = dist(c, t);
+    switch (it.effect) {
+      case 'strength': case 'regen': return !foe && dd <= 1;
+      case 'sleep': return foe && dd <= 6 && tLevel(t) <= 4;
+      case 'wand': return foe && dd <= 6 && !sightBlocked(S, c, t);
+    }
+    return false;
+  };
   const useItem = (S, c, k, t) => {
+    if (usable(k) && !['heal', 'holy', 'oil'].includes(ITEM[k].effect)) {
+      if (!canUseItem(S, c, t, k)) return null;
+      c.inv[k] -= 1;
+      switch (ITEM[k].effect) {
+        case 'strength': t.stats.STR += 2; return [`${c.name} gives ${t.name} a Potion of Strength (+2 STR this battle).`];
+        case 'regen': t.eff.regen = 5; return [`${c.name} gives ${t.name} a Potion of Regeneration (1 HP a turn for 5 turns).`];
+        case 'sleep': t.eff.asleep = 10 * casterLevel(c); return [`${c.name} reads the Scroll of Sleep; ${t.name} falls asleep.`];
+        case 'wand': {
+          const dmg = dice('1d4+1');
+          return [`${c.name} fires the Wand of Magic Missile at ${t.name} for ${dmg}.` + applyDamage(t, dmg)];
+        }
+      }
+      return null;
+    }
     const mode = k === 'healing_potion' ? 'drink' : k === 'oil' ? 'oil' : 'holy';
     if (!canAct(S, c, t, mode)) return null;
     c.inv[k] -= 1;
@@ -2081,7 +2250,7 @@ const E = (() => {
     const st = S.map.stairs;
     return !!st && !!S.dungeonRun && !!S.searchPhase && !S.over && !!u && u.side === 'P' && u.state === 'alive' && u.x === st.x && u.y === st.y && !S.units.some(e => e.side === 'E' && e.state === 'alive');
   };
-  /** Leave a cleared dungeon floor by its stairs. Loot was already banked when the floor entered search.
+  /** Leave a cleared dungeon floor by its stairs. Loot reaches the campaign when the battle ends (afterBattle).
    * Require: canTakeStairs. Guarantee: no effect when refused; otherwise the battle ends as victory exactly once.
    */
   const doStairs = (S, u) => {
@@ -2127,17 +2296,21 @@ const E = (() => {
     const pool = FLOOR_POOL[Math.min(S.delveLevel, 2)];
     const band = (S.band || 1) + 1;
     const names = [];
+    const arrivalsSurprised = d(6) <= 2, partySurprised = d(6) <= 2;
     free.slice(0, Math.min(n, free.length)).forEach(({ x, y }) => {
       const kind = pool[d(pool.length) - 1];
       const m = mkMonster(kind, x, y, `${MONSTER[kind].name} (wandering)`, S.units.length + 1);
       m.band = band;
+      m.eff.surprised = arrivalsSurprised ? 1 : 0;
       S.units.push(m);
       names.push(m.name);
     });
     S.band = band;
     S.morale = { engaged: false, halfChecked: false };
     S.searchPhase = false;
-    return [`Wandering monsters arrive: ${names.join(', ')}.`];
+    S.partySurprised = partySurprised;
+    const surprise = `${arrivalsSurprised ? ' The arrivals are surprised.' : ''}${partySurprised ? ' Your party is surprised.' : ''}`;
+    return [`Wandering monsters arrive: ${names.join(', ')}.${surprise}`];
   };
   // ---- round structure ----
   const checkEnd = S => {
@@ -2201,6 +2374,9 @@ const E = (() => {
     const skip = new Set();
     ms.forEach(m => {
       if (checkEnd(S)) return;
+      if (m.eff.surprised) { m.eff.surprised = 0; S.log.push(`${m.name} is surprised and loses its turn.`); skip.add(m.id); return; }
+      const ally = S.units.find(v => v.side === m.side && v.state === 'down' && v.id !== m.id && dist(v, m) === 1);
+      if (ally) { ally.state = 'alive'; ally.hp = 1; S.log.push(`${m.name} stands ${ally.name} up at 1 HP.`); skip.add(m.id); return; }
       if (m.eff.asleep) { S.log.push(`${m.name} sleeps.`); skip.add(m.id); return; }
       if (m.eff.turned) { m.eff.turned = 0; S.log.push(`${m.name} is turned and loses its turn.`); skip.add(m.id); return; }
       moveStep(S, m);
@@ -2218,7 +2394,10 @@ const E = (() => {
     S.units.forEach(u => {
       if (u.state === 'dead') return;
       u.eff.turnBlock = 0;
-      if (u.eff.poison > 0 && u.state === 'alive') { const dmg = dice('1d3'); S.log.push(`${u.name} suffers poison (${dmg}).` + applyDamage(u, dmg)); }
+      u.eff.heroism = 0;
+      if (u.eff.poison > 0 && u.state === 'alive' && !(u.inv && u.inv.amulet_health)) { const dmg = dice('1d3'); S.log.push(`${u.name} suffers poison (${dmg}).` + applyDamage(u, dmg)); }
+      if (u.eff.regen > 0 && u.state === 'alive') { u.eff.regen -= 1; const got = heal(u, 1); if (got) S.log.push(`${u.name} regenerates ${got} HP.`); }
+      if (u.state === 'alive' && u.armor && u.armor.trapped && !(u.inv && u.inv.amulet_health)) { const dmg = dice('1d3'); S.log.push(`${u.name} is poisoned by the ${u.armor.name} (${dmg}).` + applyDamage(u, dmg)); }
       TIMED.forEach(k => { if (u.eff[k] > 0) u.eff[k] -= 1; });
     });
     S.units.forEach(u => { if (u.state !== 'dead' && u.eff.asleep > 0) u.eff.asleep--; });
@@ -2240,6 +2419,7 @@ const E = (() => {
       S.searchRounds = (S.searchRounds || 0) + 1;
       const arrived = S.searchRounds % 2 === 0 && d(6) === 1 ? spawnWanderers(S) : [];
       S.log.push(arrived.length ? `Round ${S.round}: ${arrived[0]}` : `Round ${S.round}: search the cleared floor.`);
+      if (S.partySurprised) { S.partySurprised = false; enemyPhase(S); if (checkEnd(S)) return; }
       S.focus = nextReady(S)?.id || null;
       return;
     }
@@ -2294,6 +2474,25 @@ const E = (() => {
   };
   // Party members loot an adjacent fallen ally: its pack and gear go into the battle loot.
   const corpsesNear = (S, c) => S.units.filter(u => u.side === 'P' && u.state === 'dead' && !u.looted && dist(c, u) === 1);
+  /** Aid a downed ally: d20 + Survival rank + MIND bonus vs DC 10; success brings it to 1 HP, still Wounded.
+   * Require: canAct 'aidDown'. Guarantee: a failed aid changes nothing; success leaves the ally alive at 1 HP.
+   * Maintain: the aider's activation is spent by the caller through finishAction.
+   */
+  const doAidDowned = (S, a, t) => {
+    if (!canAct(S, a, t, 'aidDown')) return null;
+    const roll = d(20), total = roll + rankOf(a, 'survival') + bonus(a.stats.MIND);
+    if (total < 10) return [`${a.name} fails to aid ${t.name} (${total} vs DC 10).`];
+    t.state = 'alive'; t.hp = 1;
+    return [`${a.name} brings ${t.name} back to 1 HP (${total} vs DC 10).`];
+  };
+  /** Coup de grace: an adjacent ready hero kills a knocked-out enemy outright.
+   * Require: canAct 'finish'. Guarantee: the enemy is dead; a refusal changes nothing.
+   */
+  const doFinish = (S, a, t) => {
+    if (!canAct(S, a, t, 'finish')) return null;
+    t.state = 'dead'; t.hp = 0;
+    return [`${a.name} gives ${t.name} the coup de grace.`];
+  };
   const doRecover = (S, c) => {
     const body = corpsesNear(S, c)[0];
     if (!body || c.isMonster || c.state !== 'alive') return null;
@@ -2568,13 +2767,30 @@ const E = (() => {
 
     mo.hp = 3; mo.stats.STR = 12; applyDamage(mo, 5);
     t('damage: overflow past 0 HP drains STR', mo.state === 'down' && mo.hp === 0 && mo.stats.STR === 10);
-    mo.state = 'down'; mo.hp = 0; mo.stats.STR = 2; applyDamage(mo, 5);
+    mo.state = 'alive'; mo.hp = 1; mo.stats.STR = 2; applyDamage(mo, 5);
     t('damage: STR at zero = dead', mo.state === 'dead' && mo.stats.STR === 0);
     const gb = mkMonster('goblin', 0, 0, 'G', 99);
     gb.hp = 5; applyDamage(gb, 4);
     t('damage: monster survives 4 of 5 HP', gb.state === 'alive' && gb.hp === 1);
     applyDamage(gb, 1);
-    t('damage: monster dies at 0 HP', gb.state === 'dead');
+    t('damage: monster at 0 HP is knocked out, not dead', gb.state === 'down' && gb.hp === 0);
+    t('finish: a coup de grace kills an adjacent knocked-out enemy', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P'), g = S.units.find(u => u.side === 'E');
+      g.x = h.x + 1; g.y = h.y; g.state = 'down'; g.hp = 0; h.acted = false; h.moved = false; h.state = 'alive'; S.phase = 'player';
+      const L = doFinish(S, h, g);
+      return !!L && g.state === 'dead';
+    })());
+    t('finish: a knocked-out enemy keeps the battle going until finished', (() => {
+      const S = newBattle({ map: 0 }); S.units.filter(u => u.side === 'E').forEach(u => { u.state = 'dead'; u.hp = 0; });
+      const g = S.units.find(u => u.side === 'E'); g.state = 'down'; g.hp = 0; S.over = null;
+      return checkEnd(S) === false;
+    })());
+    t('aid: an adjacent awake enemy stands a knocked-out ally up at 1 HP', (() => {
+      const S = newBattle({ map: 0 }); const es = S.units.filter(u => u.side === 'E');
+      const a = es[0], b = es[1]; b.x = a.x + 1; b.y = a.y; b.state = 'down'; b.hp = 0; a.state = 'alive'; a.eff.asleep = 0; a.eff.surprised = 0; a.eff.turned = 0;
+      enemyPhase(S);
+      return b.state === 'alive' && b.hp === 1;
+    })());
 
     // Clerics vs Undead table (Basic Fantasy): cell values, then one gate per rule
     t('turn: table cells match the book (level 1 vs skeleton 13, level 8 vs skeleton T, level 13 vs skeleton D, level 1 vs wight No)', turnCell(1, 1) === 13 && turnCell(8, 1) === 'T' && turnCell(13, 1) === 'D' && turnCell(1, 4) === 'No');
@@ -2678,7 +2894,14 @@ const E = (() => {
     t('campaign: four active heroes and four reserve records start pre-generated', CP.party.length === 4 && CP.reserve.length === 4 && [...CP.party, ...CP.reserve].every(r => r.hpMax > 0));
     t('buy: mundane arrows are for sale but magical consumables are not', (() => { const g = CP.gold; const no = buy(CP, 'healing_potion'); const yes = buy(CP, 'arrow'); return !no.ok && CP.gold === g - 1 && yes.ok && CP.stash.arrow === 1; })());
     t('buy: refused without enough gold', (() => { const C2 = { gold: 10, stash: {} }; return !buy(C2, 'arrow', 11).ok && C2.gold === 10; })());
-    t('give: a stash potion goes to a unit', (() => { CP.stash.healing_potion = 1; const r = give(CP, 'healing_potion', 0); return r.ok && CP.party[0].inv.healing_potion === 1 && !CP.stash.healing_potion; })());
+    t('give: a stash potion goes to a unit', (() => { CP.stash.healing_potion = 1; const r = give(CP, 'healing_potion', 0); return r.ok && CP.party[0].inv.healing_potion === 2 && !CP.stash.healing_potion; })());
+    t('start: every hero starts with one healing potion', (() => { const C = newCampaign(); return C.party.every(p => p.inv.healing_potion >= 1); })());
+    t('carry: a monster carries at most one item, and a killed monster drops it into the loot', (() => {
+      const S = newBattle({ map: 0 }); const m = S.units.find(u => u.side === 'E');
+      m.item = 'oil'; m.state = 'dead'; m.hp = 0; m.looted = false;
+      lootMonsters(S);
+      return S.loot.items.oil === 1 && [null, 'healing_potion', 'oil', 'holy_water'].includes(mkMonster('goblin', 0, 0, 'G', 1).item);
+    })());
     t('equip: rogue refused full plate, stash unchanged', (() => { CP.stash.fullplate = 1; const r = equip(CP, 'fullplate', 0, 'armor'); return !r.ok && CP.stash.fullplate === 1; })());
     t('equip: fighter swaps armor and the old armor goes to the stash', (() => {
       const C3 = { gold: 0, stash: { fullplate: 1 }, party: [{ ...recordOf(mkPlayer(PREGEN[1], 1, [0, 0])), cls: 'fighter' }], log: [] };
@@ -2913,7 +3136,7 @@ const E = (() => {
     });
     ['attack', 'spell', 'turn'].forEach(mode => {
       const S = newBattle({ map: 0 }), actor = focusOf(S), round = S.round;
-      S.units.filter(u => u.side === 'E').forEach(u => applyDamage(u, u.hp));
+      S.units.filter(u => u.side === 'E').forEach(u => { applyDamage(u, u.hp); u.state = 'dead'; });
       finishAction(S, mode, actor);
       const gold = S.loot.gold, count = S.log.length;
       checkEnd(S);
@@ -2935,8 +3158,9 @@ const E = (() => {
       afterBattle(C, S);
       const once = JSON.stringify(C);
       afterBattle(C, S);
-      t(`settlement: ${outcome || 'unfinished'} preserves once-only rewards`, outcome
-        ? C.gold === gold + 40 && C.stash.holy_water === stash + 2 && JSON.stringify(C) === once && S.settled
+      const banks = outcome === 'victory';
+      t(`settlement: ${outcome || 'unfinished'} ${banks ? 'banks' : 'keeps'} loot once`, outcome
+        ? (banks ? C.gold === gold + 40 && C.stash.holy_water === stash + 2 : C.gold === gold && (C.stash.holy_water || 0) === stash) && JSON.stringify(C) === once && S.settled
         : JSON.stringify(C) === before && !S.settled);
     });
     ['trip', 'push', 'disarm', 'aid'].forEach(mode => {
@@ -3627,6 +3851,205 @@ const E = (() => {
       checkEnd(S);
       return S.searchPhase === true && g1 > g0 && S.loot.gold === g1 && w.every(u => u.looted === true);
     })());
+    t('hire: a man-at-arms costs 60 gp into the reserve, and only two may be hired', (() => {
+      const C = newCampaign(); C.gold = 200;
+      const a = hire(C), b = hire(C), c3 = hire(C);
+      return a.ok && b.ok && !c3.ok && C.gold === 80 && C.reserve.filter(r => r.hireling).length === 2;
+    })());
+    t('upkeep: a delve pays 10 gp per hireling, and an unpaid hireling leaves', (() => {
+      const C = newCampaign(); C.gold = 200; hire(C); hire(C); C.gold = 15;
+      const left = payUpkeep(C);
+      return left.length === 1 && C.gold === 5 && C.reserve.filter(r => r.hireling).length === 1 && C.log.some(s => /leaves the company/.test(s));
+    })());
+    t('hireling: a checkpoint passes it by, so it gets no picks', (() => {
+      const C = newCampaign(); C.gold = 200; hire(C);
+      swapRoster(C, 3, C.reserve.findIndex(r => r.hireling));
+      const S = newBattle({ map: 0, camp: C }); S.over = 'victory'; C.xp = 29;
+      afterBattle(C, S);
+      const h = C.party.find(r => r.hireling), hero = C.party.find(r => !r.hireling);
+      return !!h && (h.owed || []).length === 0 && (hero.owed || []).length === 1;
+    })());
+    t('heroism: a spent point adds +1 to every roll, lasts to the next turn, and a hero has only its pool', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.heroPool = 1; S.focus = h.id; S.phase = 'player';
+      const base = steadyOf(h);
+      const first = spendHeroism(S, h);
+      const up = steadyOf(h), again = spendHeroism(S, h), pool = h.heroPool;
+      beginPlayerPhase(S);
+      return !!first && up - base === 1 && again === null && pool === 0 && h.eff.heroism === 0;
+    })());
+    t('downed: a further hit kills a downed hero outright', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.state = 'down'; h.hp = 0; applyDamage(h, 3);
+      return h.state === 'dead';
+    })());
+    t('downed: a downed hero defends at base armor class', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.state = 'down'; h.hp = 0; h.eff.sanct = 2; h.eff.bless = 1;
+      return defenseOf(h) === armorClass(h);
+    })());
+    t('aid: a ready hero brings an adjacent downed ally to 1 HP on a high roll', (() => {
+      const S = newBattle({ map: 0 }); const a = S.units.find(u => u.side === 'P'), b = S.units.filter(u => u.side === 'P')[1];
+      b.x = a.x + 1; b.y = a.y; b.state = 'down'; b.hp = 0; S.phase = 'player';
+      withRng(0.999, () => doAidDowned(S, a, b));
+      return b.state === 'alive' && b.hp === 1;
+    })());
+    t('items: a Potion of Strength adds 2 STR for the battle, and the campaign keeps only the drain', (() => {
+      const C = newCampaign(), S = newBattle({ map: 0, camp: C }); const h = S.units.find(u => u.side === 'P');
+      const base = h.stats.STR; h.inv.potion_strength = 1;
+      const L = useItem(S, h, 'potion_strength', h);
+      const buffed = !!L && h.stats.STR === base + 2 && h.inv.potion_strength === 0;
+      S.over = 'victory'; afterBattle(C, S);
+      const rec = C.party.find(p => p.name === h.name);
+      return buffed && !!rec && rec.stats.STR === rec.maxSTR;
+    })());
+    t('items: a Potion of Regeneration heals 1 HP at each player turn and counts down', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.inv.potion_regeneration = 1; h.hp = h.hpMax - 3; S.phase = 'player';
+      useItem(S, h, 'potion_regeneration', h);
+      const before = h.hp; beginPlayerPhase(S);
+      return h.hp === before + 1 && h.eff.regen === 4;
+    })());
+    t('items: a Ring of Protection adds 1 armor class while carried', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      const a0 = armorClass(h); h.inv.ring_protection = 1;
+      return armorClass(h) === a0 + 1;
+    })());
+    t('items: a Wand of Magic Missile spends one charge per shot at an adjacent foe', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P'), g = S.units.find(u => u.side === 'E');
+      g.x = h.x + 1; g.y = h.y; g.state = 'alive'; g.hp = g.hpMax; S.phase = 'player';
+      h.inv.wand_magic_missile = 2;
+      const L = withRng(0.999, () => useItem(S, h, 'wand_magic_missile', g));
+      return !!L && h.inv.wand_magic_missile === 1 && L[0].includes('Wand of Magic Missile');
+    })());
+    t('items: a Scroll of Sleep puts an adjacent foe to sleep for ten rounds at caster level one', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P'), g = S.units.find(u => u.side === 'E');
+      g.x = h.x + 1; g.y = h.y; g.state = 'alive'; g.eff.asleep = 0; h.inv.scroll_sleep = 1; S.phase = 'player';
+      useItem(S, h, 'scroll_sleep', g);
+      return g.eff.asleep === 10 * casterLevel(h) && h.inv.scroll_sleep === 0;
+    })());
+    t('items: an Amulet of Health stops poison ticks while carried', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.inv.amulet_health = 1; h.eff.poison = 2; h.hp = h.hpMax; S.phase = 'player';
+      beginPlayerPhase(S);
+      return h.hp === h.hpMax;
+    })());
+    t('items: the radial lists wands and potions, but not rings, amulets or spell scrolls', (() => {
+      return usable('wand_magic_missile') && usable('potion_strength') && !usable('ring_protection') && !usable('amulet_health') && !usable('spell_scroll');
+    })());
+    t('sell: merchants refuse magic items they cannot verify', (() => {
+      const C = newCampaign(); C.stash.wand_magic_missile = 1; C.stash.elven_chain = 1; const g = C.gold;
+      const a = sell(C, 'wand_magic_missile'), b = sell(C, 'elven_chain');
+      return !a.ok && !b.ok && C.gold === g && C.stash.wand_magic_missile === 1 && C.stash.elven_chain === 1;
+    })());
+    t('gear: elven chain mail is one point better than chain mail; studded +1 is one better than studded', ARMOR.elven_chain.bonus === ARMOR.chainmail.bonus + 1 && ARMOR.studded_plus1.bonus === ARMOR.studded.bonus + 1 && ARMOR.studded_plus1.bonus <= ARMOR.studded.bonus + 1);
+    t('gear: magic armor is not sold and a robe is', !canBuy('elven_chain') && !canBuy('studded_plus1') && canBuy('robe'));
+    t('curse: cursed armor holds fast: it cannot be taken off or swapped until lifted', (() => {
+      const C = newCampaign(); C.party[0].armor = 'hollow_mail'; C.stash.leather = 1;
+      const off = unequip(C, 0), swap = equip(C, 'leather', 0, 'armor');
+      return !off.ok && !swap.ok && C.party[0].armor === 'hollow_mail';
+    })());
+    t('trapped: poison oak armor comes off freely into the stash', (() => {
+      const C = newCampaign(); C.party[0].armor = 'poison_oak_armor';
+      const off = unequip(C, 0);
+      return off.ok && C.party[0].armor === 'none' && C.stash.poison_oak_armor === 1;
+    })());
+    t('curse: the town wizard lifts a curse for the fee and returns the uncursed artifact', (() => {
+      const C = newCampaign(); C.gold = 400; C.party[0].armor = 'hollow_mail';
+      const cheap = (() => { const D = newCampaign(); D.gold = 100; D.party[0].armor = 'hollow_mail'; return liftCurse(D, 0).ok === false; })();
+      const lift = liftCurse(C, 0);
+      return cheap && lift.ok && C.gold === 400 - CURSE_FEE && C.party[0].armor === 'none' && C.stash.hollow_mail_uncursed === 1;
+    })());
+    t('curse: cursed armor gives +2 temporary HP and -1 to every d20 while worn', (() => {
+      const r = recordOf(mkPlayer(PREGEN[0], 1, [0, 0])); r.armor = 'hollow_mail';
+      const u = mkFromRecord(r, 1, [0, 0]);
+      return u.eff.temp === 2 && luckOf(u) === -1;
+    })());
+    t('trapped: poison oak armor poisons its wearer each turn', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.armor = ARMOR.poison_oak_armor; h.inv.amulet_health = 0; const hp0 = h.hp;
+      S.phase = 'player';
+      withRng(0.999, () => beginPlayerPhase(S));
+      return h.hp < hp0;
+    })());
+    t('camp: a good night heals half the lost HP, keeps spell debt, and leaves the search round count alone', (() => {
+      const S = searchFloor(); const r = S.map.rooms[0];
+      const heroes = S.units.filter(u => u.side === 'P');
+      heroes.forEach((h, i) => { h.x = r.x + (i % r.w); h.y = r.y + Math.floor(i / r.w); h.state = 'alive'; h.hp = h.hpMax - 6; h.debt = 2; });
+      S.units.filter(u => u.side === 'E').forEach(u => { u.state = 'dead'; u.hp = 0; });
+      const rounds = S.searchRounds;
+      const L = withRng(0.999, () => campNight(S));
+      return !!L && heroes.every(h => h.hp === h.hpMax - 3 && h.debt === 2 && h.eff.weary === 0) && S.searchRounds === rounds;
+    })());
+    t('camp: a 1 interrupts the night: no healing, every hero Weary and -1 on d20s', (() => {
+      const S = searchFloor(); const r = S.map.rooms[0];
+      const heroes = S.units.filter(u => u.side === 'P');
+      heroes.forEach((h, i) => { h.x = r.x + (i % r.w); h.y = r.y + Math.floor(i / r.w); h.state = 'alive'; h.hp = h.hpMax - 6; });
+      S.units.filter(u => u.side === 'E').forEach(u => { u.state = 'dead'; u.hp = 0; });
+      withRng(0, () => campNight(S));
+      return heroes.every(h => h.hp === h.hpMax - 6 && h.eff.weary === 1 && luckOf(h) === -1);
+    })());
+    t('camp: refused while an enemy is alive', (() => {
+      const S = searchFloor(); S.units.filter(u => u.side === 'E').forEach(u => { u.state = 'alive'; u.hp = 1; });
+      return campNight(S) === null;
+    })());
+    t('magic: every seeded floor one holds a magic chest outside the entry room', (() => {
+      let ok = 0;
+      for (let s = 1; s <= 20; s++) {
+        const S = withSeed(s, () => newBattle({ map: 'random', floor: 1 }));
+        const mc = S.map.furn.find(f => f.magic && f.kind === 'chest');
+        if (mc && roomAt(S, mc.x, mc.y) !== S.map.rooms[0]) ok++;
+      }
+      return ok === 20;
+    })());
+    t('magic: opening a floor-one magic chest yields a magic find from the floor-one table', (() => {
+      const pl = mkPlayer(PREGEN[0], 1, [4, 4]);
+      const SC = { map: { rows: Array.from({ length: 9 }, () => '0'.repeat(12)), furn: [{ x: 5, y: 4, kind: 'chest', magic: true }], doors: [], secrets: [], P: [], E: [] }, units: [pl], traps: [], loot: { gold: 0, items: {} }, delveLevel: 1 };
+      doOpenChest(SC, pl, SC.map.furn[0]);
+      return Object.keys(SC.loot.items).some(k => MAGIC_LOOT[1].includes(k));
+    })());
+    t('stalwart: temporary HP absorbs damage before HP is lost', (() => {
+      const r = recordOf(mkPlayer(PREGEN[0], 1, [0, 0])); r.feats = ['stalwart'];
+      const u = mkFromRecord(r, 1, [0, 0]);
+      const hp0 = u.hp, rolled = u.eff.temp >= 1 && u.eff.temp <= 6;
+      u.eff.temp = 4; applyDamage(u, 3);
+      const absorbedAll = u.eff.temp === 1 && u.hp === hp0;
+      applyDamage(u, 3);
+      return rolled && absorbedAll && u.eff.temp === 0 && u.hp === hp0 - 2;
+    })());
+    t('injury: a downed hero rolls D66 after the battle; 11-35 is dead, 36-66 recovers at 1 HP', (() => {
+      const C = newCampaign(), S = newBattle({ map: 0, camp: C });
+      const h = S.units.find(u => u.side === 'P');
+      h.state = 'down'; h.hp = 0; S.over = 'victory';
+      const before = C.party.length;
+      withRng(0, () => afterBattle(C, S));
+      const dead = C.party.length === before - 1 && !C.party.some(p => p.name === h.name);
+      const C2 = newCampaign(), S2 = newBattle({ map: 0, camp: C2 });
+      const h2 = S2.units.find(u => u.side === 'P');
+      h2.state = 'down'; h2.hp = 0; S2.over = 'victory';
+      withRng(0.999, () => afterBattle(C2, S2));
+      const kept = C2.party.some(p => p.name === h2.name && p.hp === 1);
+      return dead && kept;
+    })());
+    t('wounded: a hero at half HP or less rolls at -2, and above half it does not', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      h.hpMax = 20; h.hp = 10; const atHalf = steadyOf(h);
+      h.hp = 11; const aboveHalf = steadyOf(h);
+      h.hp = 0; h.state = 'down'; const down = woundedOf(h);
+      return atHalf - aboveHalf === -2 && woundedOf({ ...h, state: 'alive', hp: 10, hpMax: 20, side: 'P' }) === -2 && down === 0;
+    })());
+    t('surprise: a 1 or 2 on both rolls surprises the arrivals and the party', (() => {
+      const S = searchFloor();
+      const msg = withRng(0, () => spawnWanderers(S))[0];
+      const w = S.units.filter(u => u.side === 'E' && u.band === 2);
+      return w.length >= 1 && w.every(m => m.eff.surprised === 1) && S.partySurprised === true && /The arrivals are surprised\. Your party is surprised\./.test(msg);
+    })());
+    t('surprise: a 3 to 6 on both rolls surprises no one', (() => {
+      const S = searchFloor();
+      const msg = withRng(0.999, () => spawnWanderers(S))[0];
+      const w = S.units.filter(u => u.side === 'E' && u.band === 2);
+      return w.length >= 1 && w.every(m => m.eff.surprised === 0) && S.partySurprised === false && !/surprised/.test(msg);
+    })());
     t('wanderers: morale is judged per band', (() => {
       const S = withSeed(7, () => newBattle({ map: 'random', floor: 1 }));
       const foes = S.units.filter(u => u.side === 'E');
@@ -3644,7 +4067,8 @@ const E = (() => {
     t('wanderers: arrival gives one warning round, then the arrivals act at the next enemy phase', (() => {
       const S = searchFloor();
       S.searchRounds = 1;
-      withRng(0, () => endPlayerPhase(S));
+      const prevRand = rand; let calls = 0; rand = () => (calls++ === 0 ? 0 : 0.999);
+      try { endPlayerPhase(S); } finally { rand = prevRand; }
       const w = S.units.filter(u => u.band === 2);
       if (!w.length || S.searchPhase !== false || S.phase !== 'player') return false;
       const spot = w.map(u => `${u.x},${u.y}`);
@@ -3740,14 +4164,14 @@ const E = (() => {
             }
             const foes = foesOf(SS, c);
             const adj = foes.find(f => dist(c, f) === 1);
-            if (adj) doAttack(SS, c, adj, 'melee');
+            if (adj) (adj.state === 'down' ? doFinish(SS, c, adj) : doAttack(SS, c, adj, 'melee'));
             else if (foes.length) {
               const f = pathField(SS, foes);
               const sc = r => f.has(key(r.x, r.y)) ? f.get(key(r.x, r.y)) : 999;
               const best = reach(SS, c).sort((a, b) => sc(a) - sc(b))[0];
               if (best && !c.moved) moveTo(SS, c, best.x, best.y);
               const adj2 = foes.find(f2 => dist(c, f2) === 1);
-              if (adj2 && !c.acted) doAttack(SS, c, adj2, 'melee');
+              if (adj2 && !c.acted) (adj2.state === 'down' ? doFinish(SS, c, adj2) : doAttack(SS, c, adj2, 'melee'));
             }
             endActivation(SS);
           }
@@ -3787,6 +4211,18 @@ const E = (() => {
       const loss = newCampaign(); loss.inDelve = true; loss.delve = 2;
       const L = newBattle({ map: 'random', camp: loss }); L.over = 'defeat'; afterBattle(loss, L);
       t('delve: defeat returns to town without a cleared level', !loss.inDelve && loss.delve === 0 && L.delveLevel === 3);
+      const lootLoss = newCampaign(), goldBefore = lootLoss.gold;
+      const LL = newBattle({ map: 'random', camp: lootLoss }); LL.loot.gold = 50; LL.over = 'defeat'; afterBattle(lootLoss, LL);
+      t('loot: a defeat banks no battle loot', lootLoss.gold === goldBefore);
+      const lootWin = newCampaign(), winBefore = lootWin.gold;
+      const LW = newBattle({ map: 0, camp: lootWin }); LW.loot.gold = 50; LW.over = 'victory'; afterBattle(lootWin, LW);
+      t('loot: a victory banks the battle loot', lootWin.gold === winBefore + 50);
+      const reload = newCampaign(); reload.inDelve = true; reload.delve = 1; normalizeCampaign(reload);
+      t('delve: a reload mid-delve abandons it and opens town', !reload.inDelve && reload.delve === 0 && reload.log.some(s => /abandoned/.test(s)));
+      const turnRec = recordOf(mkPlayer(PREGEN[3], 1, [0, 0])); turnRec.ms = 3;
+      t('undead: uses per battle are 2 + caster level + MIND bonus after a reload (level 8, MIND 13 gives 11)', mkFromRecord(turnRec, 1, [0, 0]).undeadUses === 11);
+      const turnRec13 = recordOf(mkPlayer(PREGEN[3], 1, [0, 0])); turnRec13.ms = 4;
+      t('undead: level 13 reload gives 2 + 13 + MIND bonus (16)', mkFromRecord(turnRec13, 1, [0, 0]).undeadUses === 16);
       const T = newCampaign(), mage = T.party[2], cleric = T.party[3];
       T.day = 1;
       t('teachers: arcane tutor rotates on odd days and skills trainer stays', availableTeachers(T).includes('mage') && availableTeachers(T).includes('skills'));
@@ -3826,11 +4262,11 @@ const E = (() => {
     setRng: f => { rand = f; },
     parseDice, dice, diceMax, bonus, chain, rangedPenalty, spellCost,
     FEATS, SKILLS, MILESTONES, OPTIONS, PICKS_PER_MILESTONE, offerFor, pickOption, applyOption, casterLevel, encounterLevel, spellsFor, canCast, checkpointsFor, canTrainOption, availableTeachers, learnFromScroll,
-    newCampaign, normalizeCampaign, swapRoster, canBuy, buy, sell, give, equip, rest, afterBattle, canEquip, recordOf, mkFromRecord, lootMonsters, doOpenChest, chestsNear, useItem, priceOf, nameOf, GEAR, START_GOLD,
+    newCampaign, normalizeCampaign, swapRoster, canBuy, buy, sell, give, equip, rest, unequip, liftCurse, CURSE_FEE, ARMOR, campNight, hire, payUpkeep, spendHeroism, HIRE_FEE, UPKEEP, afterBattle, canEquip, recordOf, mkFromRecord, lootMonsters, doOpenChest, chestsNear, useItem, canUseItem, usable, priceOf, nameOf, GEAR, START_GOLD,
     threatOf, memberRating, companyRating, bossRequired, LAIR_BOSS, roomEvent, roomAt, ROOM_EVENTS, ROOM_THEMES, luckOf, doManeuver, sightBlocked, isDoor, doorOpen, lineTiles, isRear, cmbOf, doGrenade, moraleCheck, nbrs,
     attackKind, whyNoAttack, validate, genDungeon, reach, moveTo, pathField, applyDamage, heal, strike, doAttack, turnUndead, cast,
     enemyAct, canAct, canThrow, armorClass, rankOf, meleeBonus, meleeDmg,
-    moveBudget, stepCost, previewMove, afterStep, endMove, finishAction, chargeLine, doCharge, climbOut, focusOf, switchFocus, spendMove, spendAction, endActivation, corpsesNear, doRecover, enemyPhase,
+    moveBudget, stepCost, previewMove, afterStep, endMove, finishAction, chargeLine, doCharge, climbOut, focusOf, switchFocus, spendMove, spendAction, endActivation, corpsesNear, doRecover, doAidDowned, doFinish, enemyPhase,
     twinOK, sneakAttempt, foesOf, dist, mkPlayer, mkMonster, ITEM, rangedReady, doSearch, doDisarm, disarmTargets,
     coordinationOf, canClaim, doClaim, canUseShrine, doShrine, canTakeStairs, doStairs, resolveObjective,
     curUnit, checkEnd, elevationProp, tableTargets, doBreakTable, newBattle, gates,
@@ -3943,9 +4379,16 @@ function renderTown() {
     return `<div class="srow">${p.name}: <select id="scroll${group}${i}">${choices.map(k => `<option value="${k}">${E.SPELL[k].name}</option>`).join('')}</select> <button ${locked || !hasTeacher ? 'disabled' : ''} onclick="townStudy('${group}',${i},$('#scroll${group}${i}').value)">Study scroll</button>${hasTeacher ? '' : ' <span class="dim">Tutor unavailable today.</span>'}</div>`;
   };
   const scrolls = [...C.party.map((p, i) => scrollStudy(p, i, 'party')), ...C.reserve.map((p, i) => scrollStudy(p, i, 'reserve'))].join('');
+  const gearRows = C.party.map((p, i) => {
+    const a = E.ARMOR[p.armor];
+    if (!a) return '';
+    if (a.cursed) return `<div class="srow">${p.name} wears the cursed ${a.name}. <button onclick="townLift(${i})">Lift the curse (${E.CURSE_FEE} gp, town wizard)</button></div>`;
+    if (a.trapped) return `<div class="srow">${p.name} wears the ${a.name}, which poisons them each turn. <button onclick="townUnequip(${i})">Take it off</button></div>`;
+    return '';
+  }).join('');
   const services = locked ? `<div class="dim">Town services are closed during this delve. ${3 - C.delve} level${3 - C.delve === 1 ? '' : 's'} remain before resupply.</div>` : `
     <details ${advance ? 'open' : ''}><summary>Training and teachers</summary><div class="dim">Here today: ${teachers}. Resting advances the day; checkpoint choices wait for the matching tutor.</div>${advance || '<div class="dim">No pending checkpoint choices.</div>'}${scrolls ? `<div class="sec">Dungeon scrolls</div>${scrolls}` : ''}</details>
-    <details><summary>Stash and basic supplies</summary><div class="sec">Stash</div>${stash}<div class="sec">Shop (mundane gear and arrows)</div><div class="srow"><select id="shopSel">${shop}</select> <button onclick="townBuy()">Buy</button></div></details>`;
+    <details><summary>Stash and basic supplies</summary><div class="sec">Stash</div>${stash}${gearRows ? `<div class="sec">Curses and trapped gear</div>${gearRows}` : ''}<div class="sec">Hire</div><div class="srow">Man-at-arms: ${E.HIRE_FEE} gp to hire, ${E.UPKEEP} gp per delve, or he leaves. <button onclick="townHire()">Hire a man-at-arms</button></div><div class="sec">Shop (mundane gear and arrows)</div><div class="srow"><select id="shopSel">${shop}</select> <button onclick="townBuy()">Buy</button></div></details>`;
   t.innerHTML = `
     <div class="ttl">Oakmoor · Day ${C.day} · Checkpoint ${['start', 'I', 'II', 'III', 'IV'][C.ms || 0]} · ${C.gold} gp</div>
     <div class="dim">Encounter points: ${C.xp || 0} · next checkpoint at ${E.MILESTONES.find(t => t > (C.xp || 0)) || 'none'}</div>
@@ -3987,6 +4430,9 @@ function townSwap(i) {
  */
 function townStudy(group, i, k) { townMsg(E.learnFromScroll(CAMP, i, k, group)); }
 function townRest() { townMsg(E.rest(CAMP)); }
+function townUnequip(i) { townMsg(E.unequip(CAMP, i)); }
+function townLift(i) { townMsg(E.liftCurse(CAMP, i)); }
+function townHire() { townMsg(E.hire(CAMP)); }
 function townNew() { CAMP = E.newCampaign(); townSel = 0; saveCamp(); renderTown(); }
 /** Start the next random encounter in an active delve.
  * Require: CAMP.inDelve and at least one active hero.
@@ -4011,7 +4457,7 @@ function startCampaignBattle() {
 function townDescend() {
   pendingMove = null;
   if (!CAMP.party.length) return;
-  if (!CAMP.inDelve) { CAMP.inDelve = true; CAMP.delve = 0; CAMP.log.push('The company begins a three-level delve.'); }
+  if (!CAMP.inDelve) { E.payUpkeep(CAMP); if (!CAMP.party.length) return; CAMP.inDelve = true; CAMP.delve = 0; CAMP.log.push('The company begins a three-level delve.'); }
   else CAMP.log.push(`The company resumes at dungeon level ${CAMP.delve + 1}.`);
   saveCamp();
   startCampaignBattle();
@@ -4169,6 +4615,7 @@ function onTile(x, y) {
         : mode === 'charge' ? E.doCharge(S, c, u)
         : ['trip', 'push', 'disarm', 'aid'].includes(mode) ? E.doManeuver(S, c, u, mode)
         : mode === 'oil' ? E.useItem(S, c, 'oil', u)
+        : mode === 'magic' ? E.useItem(S, c, spk, u)
         : mode === 'drink' ? E.useItem(S, c, 'healing_potion', u)
         : mode === 'holy' ? E.useItem(S, c, 'holy_water', u)
         : E.doAttack(S, c, u, 'attack');
@@ -4482,6 +4929,7 @@ function renderActs() {
   }
   if (menu === 'skill') {
     hint.textContent = 'Choose a skill check.';
+    add('Camp for the night', !!S.searchPhase && c.state === 'alive', () => { const L = E.campNight(S); if (L) S.log.push(...L); menu = null; render(); });
     add('Search (2 tiles)', ready && !c.acted, () => {
       const L = E.doSearch(S, c);
       if (L) { S.log.push(...L); E.finishAction(S, 'search', c); }
@@ -4492,12 +4940,13 @@ function renderActs() {
       if (L) { S.log.push(...L); E.finishAction(S, 'chest', c); }
       finish();
     });
-    E.tableTargets(S, c).forEach(p => add(`Break table (${p.x},${p.y}) · DC 12`, ready && !c.acted, () => {
+    E.tableTargets(S, c).forEach(p => add(`Break table (${p.x},${p.y}) · DC 10`, ready && !c.acted, () => {
       const L = E.doBreakTable(S, c, p.x, p.y);
       if (L) { S.log.push(...L); E.finishAction(S, 'skill', c); }
       finish();
     }));
     add('Disarm trap', ready && !c.acted && E.disarmTargets(S, c).length > 0, () => { mode = 'trapDisarm'; menu = null; render(); });
+    add(`Heroism (${c.heroPool || 0} left)`, ready && (c.heroPool || 0) > 0 && !c.eff.heroism, () => { const L = E.spendHeroism(S, c); if (L) S.log.push(...L); menu = null; render(); });
     add('Back', true, back);
     return;
   }
@@ -4511,6 +4960,10 @@ function renderActs() {
     add('Charge', free, () => { mode = 'charge'; menu = null; render(); });
     add('Disarm weapon', free, () => { mode = 'disarm'; menu = null; render(); });
     add('Aid another', free, () => { mode = 'aid'; menu = null; render(); });
+    const downedAdj = S.units.find(u => u.side === 'P' && u.state === 'down' && u !== c && dist(c, u) === 1);
+    add('Aid downed', !!downedAdj && free, () => { const L = E.doAidDowned(S, c, downedAdj); if (L) { S.log.push(...L); E.finishAction(S, 'skill', c); } menu = null; render(); });
+    const knocked = S.units.find(u => u.side === 'E' && u.state === 'down' && dist(c, u) === 1);
+    add('Coup de grace', !!knocked && c.state === 'alive' && !c.acted, () => { const L = E.doFinish(S, c, knocked); if (L) { S.log.push(...L); E.finishAction(S, 'attack', c); } menu = null; render(); });
     add('Back', true, back);
     return;
   }
@@ -4519,9 +4972,9 @@ function renderActs() {
     const rows = Object.entries(c.inv).filter(([, n]) => n > 0);
     if (!rows.length) hint.textContent = 'No items.';
     rows.forEach(([k, n]) => {
-      const it = E.ITEM[k], usable = !!(it && it.effect);
-      add(`${it ? it.name : k} x${n}`, usable && !c.acted, () => {
-        mode = it.effect === 'heal' ? 'drink' : it.effect === 'oil' ? 'oil' : 'holy'; spk = null; menu = null; render();
+      const it = E.ITEM[k], ok = E.usable(k);
+      add(`${it ? it.name : k} x${n}`, ok && !c.acted, () => {
+        mode = it.effect === 'heal' ? 'drink' : it.effect === 'oil' ? 'oil' : it.effect === 'holy' ? 'holy' : 'magic'; spk = k; menu = null; render();
       });
     });
     add('Back', true, back);

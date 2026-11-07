@@ -2,6 +2,10 @@
 
 This ledger names the games and rules sources that shaped Microlite Tactics. It distinguishes rules used in play from design influence and sources that were reviewed without a specific current rule being traced to them. A familiar mechanic is not attributed to a source unless the game's notes identify that relationship.
 
+## Toolkit for design
+
+The design intent for advancement, feats, and the campaign's growth is in [`intent.md`](./intent.md). The sources below are a toolkit to draw from when realizing that intent; they are not rules the game must copy.
+
 ## Rules borrowed or adapted
 
 ### Microlite20

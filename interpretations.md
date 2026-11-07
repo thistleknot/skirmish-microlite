@@ -1,5 +1,38 @@
 # CURRENT — Campaign redesign interpretations
 
+## Pending items resolved (2026-11-07)
+
+- **Floor two places five enemies (floor one four, floor three four).** Basis: seeded auto-play showed floor 2 nearly flat against floor 1 (0.43 vs 0.47). After: floor 2 clears 0.11 (3 of 28). Operator's standing instruction to use creative license. Revert: `enemyCount` in `genDungeon`. OQ-012.
+- **Phone layout is side by side (unit statistics and radial), as `layout.md` says.** Basis: committed phone CSS and the operator's Android screenshots. The 2026-11-03 "one column" entry above is stale. OQ-007.
+- **Curse fee 300 gp; ring +1.** Implementer's figures under the operator's creative-license instruction. OQ-010, OQ-011.
+- **Unreadable save overwritten, as built.** Keeping a backup is a product choice not made. OQ-003.
+
+## Items, curses and camping, decided with the operator (2026-11-06)
+
+- **Permanent buffs are gear, capped at +1.** Studded Leather +1, Elven Chain Mail, Robe. Magic gear is never sold; it is found in the dungeon. Basis: operator, merchants cannot verify magic.
+- **Temporary buffs are potions and scrolls.** Strength, Regeneration, Sleep, and the Wand's charges. Basis: operator.
+- **Trapped gear and cursed artifacts are separate.** Trapped gear comes off freely in town. Cursed artifacts hold fast until the town wizard lifts the curse. Basis: operator.
+- **Curse lift fee is 300 gp.** Operator said "a hefty price"; 300 is my figure, not confirmed. Recorded as an open question below.
+- **Camping:** one d6 roll per night, 1 interrupts (Weary, wanderers), 2-6 heals half lost HP, spell debt kept. Basis: operator's roll and half-HP wording.
+- **Difficulty curve from seeded auto-play (60 seeds):** floor 1 clears 0.47, floor 2 clears 0.43, floor 3 clears 0 of 12. Floor 2 is nearly flat against floor 1, so the operator's "significantly harder" step is not there yet. Superseded 2026-11-07: floor two now places five enemies; see the pending items entry above.
+
+## Adopted inspirations, decided by the implementer (2026-11-06)
+
+- **Serious injury kept at Mordheim's table.** A downed hero dies on 11-35, about 47% of rolls. Kept as written; the constant is in `afterBattle`. The operator can change it.
+- **Hirelings: two man-at-arms, 60 gp hire, 10 gp per delve.** Unpaid, they leave. They take no checkpoint picks. Half XP not built: campaign XP is shared, so there is no per-hero XP to halve.
+- **Heroism: pool equals caster level, refilled per battle.** Spent as a free action; +1 to every d20 until the next player phase.
+- **Stalwart feat built:** +1d6 temporary HP each battle, absorbed before HP. Bravery, Cleave, Precise Shot and Team Tactics not built yet.
+- **Surprise, DC ladder, Wounded: built as described in rules.md.** The table-break DC moved from 12 to 10 (average).
+
+## Code fixes from the 2026-11-06 plan (2026-11-06)
+
+- **Checkpoint 13 kept.** Operator: level 8 is minor-league local hero, 13 major league, 21 Olympian. Basis: operator messages 2026-11-06; `intent.md`.
+- **Turn Undead uses = 2 + caster level + MIND bonus after a reload.** Basis: operator ("go with your gut"); UC-004 BR-001; OQ-001 resolved.
+- **Fallback dungeon map gets a stairs tile at (11, 7).** Basis: a floor on the fallback could not be left (OQ-006). Assumed placement; not gated.
+- **A reopened campaign with a delve in progress abandons the delve.** Basis: battle state is not saved (OQ-005). Assumed; the operator has not confirmed.
+- **Loot banks on the stairs, as rules.md says.** Basis: `afterBattle` runs when the battle ends (OQ-002). Comment on `doStairs` corrected.
+- **A defeat loses the battle's loot; only victory banks it.** Basis: operator, 2026-11-06 ("No. That makes no sense"). No escape mechanic exists. OQ-009 resolved.
+
 ## Current stairs, search and wanderer decision (2026-11-02)
 
 - **Floor ends only at the stairs.** Operator, 2026-11-02: "Stairs only." A cleared dungeon floor stays open for searching, and only taking the floor's stairs ends it. Opening the last chest no longer ends the floor. Basis: the operator's own words ("all treasure has been cleared or I decide to go to next level by going to stairs").

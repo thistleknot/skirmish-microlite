@@ -1,4 +1,5 @@
 # Playbook: Stairs, wandering monsters, map overlays
+> Superseded 2026-11-06: its open T7 (overlay end-to-end check) is replaced by the downed-heroes, items and camping playbook at `.tmp/plans/structured-leaping-karp.md`.
 Source: .tmp/plans/look-i-d-like-stats-jaunty-hearth.md (approved 2026-11-02); working copy .tmp/plan.md
 Executed under DEC-04 (a): Leader writes .playbook/T<n>.subplan.md; one fresh doer per task. Parallel-layer lessons are written here by the Leader.
 
