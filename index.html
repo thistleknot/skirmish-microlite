@@ -1180,7 +1180,7 @@ const E = (() => {
     if (!t.isMonster && t.state === 'down' && dmg > 0) { t.state = 'dead'; return ` ${t.name} is struck down for good.`; }
     if (t.isMonster) {
       t.hp -= dmg;
-      if (t.hp <= 0) { t.hp = 0; t.state = 'down'; return ' It is knocked out.'; }
+      if (t.hp <= 0) { t.hp = 0; if (t.undead) { t.state = 'dead'; return ' It is destroyed.'; } t.state = 'down'; return ' It is knocked out.'; }
       return '';
     }
     let rem = dmg, note = '';
@@ -1269,6 +1269,7 @@ const E = (() => {
   };
 
   const strike = (a, t, s, extra) => {
+    if (t.isMonster && t.state === 'down') { t.state = 'dead'; t.hp = 0; return `${a.name} finishes ${t.name}.`; }
     const roll = d(20), total = roll + s.bonus, ac = defenseOf(t), crit = roll === 20;
     if (roll === 1 || (!crit && total <= ac)) return `${a.name} misses ${t.name} (${total} vs AC ${ac}).`;
     const dmg = Math.max(0, (crit ? diceMax(s.dice) : dice(s.dice)) + s.flat + extra);
@@ -2375,7 +2376,7 @@ const E = (() => {
     ms.forEach(m => {
       if (checkEnd(S)) return;
       if (m.eff.surprised) { m.eff.surprised = 0; S.log.push(`${m.name} is surprised and loses its turn.`); skip.add(m.id); return; }
-      const ally = S.units.find(v => v.side === m.side && v.state === 'down' && v.id !== m.id && dist(v, m) === 1);
+      const ally = S.units.find(v => v.side === m.side && v.state === 'down' && !v.undead && v.id !== m.id && dist(v, m) === 1);
       if (ally) { ally.state = 'alive'; ally.hp = 1; S.log.push(`${m.name} stands ${ally.name} up at 1 HP.`); skip.add(m.id); return; }
       if (m.eff.asleep) { S.log.push(`${m.name} sleeps.`); skip.add(m.id); return; }
       if (m.eff.turned) { m.eff.turned = 0; S.log.push(`${m.name} is turned and loses its turn.`); skip.add(m.id); return; }
@@ -4007,6 +4008,31 @@ const E = (() => {
       const SC = { map: { rows: Array.from({ length: 9 }, () => '0'.repeat(12)), furn: [{ x: 5, y: 4, kind: 'chest', magic: true }], doors: [], secrets: [], P: [], E: [] }, units: [pl], traps: [], loot: { gold: 0, items: {} }, delveLevel: 1 };
       doOpenChest(SC, pl, SC.map.furn[0]);
       return Object.keys(SC.loot.items).some(k => MAGIC_LOOT[1].includes(k));
+    })());
+    t('finish: an ordinary attack kills a knocked-out enemy outright', (() => {
+      const S = newBattle({ map: 0 }); const h = S.units.find(u => u.side === 'P');
+      const g = S.units.find(u => u.side === 'E' && !u.undead);
+      const open = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const x = h.x + dx, y = h.y + dy;
+        if ((dx || dy) && S.map.rows[y] && S.map.rows[y][x] && S.map.rows[y][x] !== '#' && dist(h, { x, y }) === 1) open.push([x, y]);
+      }
+      const [x, y] = open[0];
+      g.x = x; g.y = y; g.state = 'down'; g.hp = 0; h.acted = false; h.moved = false; h.state = 'alive'; S.phase = 'player';
+      doAttack(S, h, g, 'melee');
+      return g.state === 'dead';
+    })());
+    t('undead: at 0 HP a skeleton is destroyed, not knocked out', (() => {
+      const u = mkMonster('skeleton', 0, 0, 'Sk', 90);
+      u.hp = 2; applyDamage(u, 5);
+      return u.state === 'dead' && u.hp === 0;
+    })());
+    t('aid: an undead enemy never stands up, even beside an awake ally', (() => {
+      const S = newBattle({ map: 0 }); const es = S.units.filter(u => u.side === 'E');
+      const a = es[0], b = es[1];
+      b.undead = true; b.x = a.x + 1; b.y = a.y; b.state = 'down'; b.hp = 0; a.state = 'alive'; a.eff.asleep = 0; a.eff.surprised = 0; a.eff.turned = 0;
+      enemyPhase(S);
+      return b.state === 'down' && b.hp === 0;
     })());
     t('stalwart: temporary HP absorbs damage before HP is lost', (() => {
       const r = recordOf(mkPlayer(PREGEN[0], 1, [0, 0])); r.feats = ['stalwart'];
